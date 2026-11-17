@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "TravelBuddy | Q-MASS",
+  title: "TravelBuddy",
   description: "Plan travel around your destination, dates, interests, and budget.",
   icons: {
     icon: { url: "/images/TravelBuddy_Favicon.png", type: "image/png" },

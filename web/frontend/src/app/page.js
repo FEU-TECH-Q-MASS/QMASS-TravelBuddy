@@ -1,7 +1,7 @@
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16 sm:px-12">
-      <p className="text-sm font-semibold tracking-widest text-brand-700">Q-MASS / TRAVELBUDDY</p>
+      <p className="text-sm font-semibold tracking-widest text-brand-700">TRAVELBUDDY</p>
       <h1 className="mt-5 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
         Every great trip starts with a plan.
       </h1>
