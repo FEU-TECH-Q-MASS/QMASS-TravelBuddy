@@ -1,122 +1,177 @@
-<a name="readme-top">
+# TravelBuddy — Q-MASS
 
-<br/>
+TravelBuddy is a web travel planner designed to combine a traveler's destination,
+dates, interests, and budget with flight, hotel, maps, weather, and holiday data
+to produce a personalized itinerary.
 
-<br />
-<div align="center">
-  <a href="https://github.com/zyx-0314/">
-  <!-- TODO: If you want to add logo or banner you can add it here -->
-    <img src="./assets/img/nyebe_white.png" alt="Nyebe" width="130" height="100">
-  </a>
-<!-- TODO: Change Title to the name of the title of your Project -->
-  <h3 align="center">Title</h3>
-</div>
-<!-- TODO: Make a short description -->
-<div align="center">
-  Short Description. (Optional)
-</div>
+**Status: project foundation.** The repository currently provides a working
+Next.js starter page and Express health API. Accounts, saved trips, AI itinerary
+generation, live provider integrations, and historical imports are not implemented.
+No real travel prices, forecasts, or recommendations are displayed yet.
 
-<br />
+## Technology stack
 
-<!-- TODO: Change the zyx-0314 into your github username  -->
-<!-- TODO: Change the WD-Template-Project into the same name of your folder -->
-![](https://visit-counter.vercel.app/counter.png?page=zyx-0314/WD-Template-Project)
+| Layer | Technology |
+| --- | --- |
+| Web interface | Next.js App Router + React, JavaScript |
+| Styling | Tailwind CSS 4 with its PostCSS plugin |
+| API | Node.js + Express 5, CommonJS |
+| Runtime validation | Zod |
+| Database and authentication | Supabase PostgreSQL + Supabase Auth (planned; backend SDK installed) |
+| AI itinerary generation | Google Gemini API (planned) |
+| Flights and hotels | Amadeus APIs (planned) |
+| Places and travel routes | Google Maps APIs (planned) |
+| Weather | OpenWeather API (planned) |
+| Public holidays | Nager.Date API (planned) |
+| Tooling | npm workspaces, ESLint, Node.js test runner, concurrently |
 
-[![wakatime](https://wakatime.com/badge/user/018dd99a-4985-4f98-8216-6ca6fe2ce0f8/project/63501637-9a31-42f0-960d-4d0ab47977f8.svg)](https://wakatime.com/badge/user/018dd99a-4985-4f98-8216-6ca6fe2ce0f8/project/63501637-9a31-42f0-960d-4d0ab47977f8)
+The layout follows SAVIRA-AXION's frontend/backend organization. This project has
+**no mobile application, internal web portal, or dedicated NLP service**.
+Tailwind replaces the Bootstrap styling proposed in the initial audit. No extra
+UI component library is installed.
 
----
+## Requirements
 
-<br />
-<br />
+- Node.js **24 LTS** and npm **11 or later**. Use the same Node major across the team.
+- Git.
+- Provider accounts are only needed when implementing the corresponding features.
+  The scaffold starts without API keys or a database.
 
-<!-- TODO: If you want to add more layers for your readme -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#overview">Overview</a>
-      <ol>
-        <li>
-          <a href="#key-components">Key Components</a>
-        </li>
-        <li>
-          <a href="#technology">Technology</a>
-        </li>
-      </ol>
-    </li>
-    <li>
-      <a href="#rule,-practices-and-principles">Rules, Practices and Principles</a>
-    </li>
-    <li>
-      <a href="#resources">Resources</a>
-    </li>
-  </ol>
-</details>
+## Quick start
 
----
+Run all npm commands from the repository root:
 
-## Overview
-
-<!-- TODO: To be changed -->
-<!-- The following are just sample -->
-Description of the project in details.
-
-Guiding Question:
-- What is the project
-- Whats the purpose
-- What are key components
-- What technology used and how it is used
-
-### Key Components
-<!-- TODO: List of Key Components -->
-<!-- The following are just sample -->
-- MultiPage Website/Single Page Website
-- Parallax transition
-- Transactional
-
-### Technology
-<!-- TODO: List of Technology Used -->
-![HTML](https://img.shields.io/badge/HTML-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![CSS](https://img.shields.io/badge/CSS-1572B6?style=for-the-badge&logo=css3&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=white)
-
-## Rules, Practices and Principles
-1. Always use `WD-` in the front of the Title of the Project for the Subject followed by your custom naming.
-2. Do not rename any .html files; always use `index.html` as the filename.
-3. Place Files in their respective folders.
-4. All file naming are in camel case.
-   - Camel case is naming format where there is no white space in separation of each words, the first word is in all lower case while the succeding words first letter are in upper followed by lower cased letters.
-   - ex.: buttonAnimatedStyle.css
-5. Use only `External CSS`.
-6. Renaming of Pages folder names are a must, and relates to what it is doing or data it holding.
-7. File Structure to follow below.
-
-```
-WD-ProjectName
-└─ assets
-|   └─ css
-|   |   └─ style.css
-|   └─ img
-|   |   └─ fileWith.jpeg/.jpg/.webp/.png
-|   └─ js
-|       └─ script.js
-└─ pages
-|  └─ pageName
-|     └─ assets
-|     |  └─ css
-|     |  |  └─ style.css
-|     |  └─ img
-|     |  |  └─ fileWith.jpeg/.jpg/.webp/.png
-|     |  └─ js
-|     |     └─ script.js
-|     └─ index.html
-└─ index.html
-└─ readme.md
+```powershell
+npm ci
+Copy-Item web/frontend/.env.example web/frontend/.env.local
+Copy-Item web/backend/.env.example web/backend/.env
+npm run dev
 ```
 
-## Resources
+Copy the example environment files once; do not overwrite existing local settings.
+For the first dependency resolution, or after intentionally changing dependencies,
+use `npm install` and commit the root `package-lock.json`. For normal setup use
+`npm ci`. Do not maintain lockfiles inside the workspace packages.
 
-<!-- TODO: Add References -->
-| Title | Purpose | Link |
-|-|-|-|
-| Sample Title | Sample purpose would be here like this and this is the example of what it is. | trykolang.com |
+- Frontend: <http://localhost:3000>
+- API directly: <http://localhost:5000/api/v1/health>
+- API through the frontend: <http://localhost:3000/api/v1/health>
+
+Stop development with `Ctrl+C`. The root command runs both services together.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the frontend and backend with development reload |
+| `npm run dev:web` | Alias for the combined development command |
+| `npm run dev:frontend` | Start Next.js only on port 3000 |
+| `npm run dev:backend` | Start Express only on port 5000 |
+| `npm run lint` | Lint both applications |
+| `npm test` | Run backend configuration, integration, and API contract tests |
+| `npm run build` | Build the production frontend |
+| `npm start` | Run the built frontend and backend together |
+
+Run `npm run build` before `npm start`. Production hosting must provide environment
+variables, HTTPS, and process management. No hosting service is provisioned here.
+
+## File structure
+
+```text
+QMASS-TravelBuddy/
+├── docs/
+│   ├── api/README.md
+│   └── architecture.md
+├── tools/
+├── web/
+│   ├── package.json
+│   ├── frontend/
+│   │   ├── public/images/
+│   │   ├── src/
+│   │   │   ├── app/           # Next.js routes, layout, global Tailwind styles
+│   │   │   ├── components/    # Reusable React components
+│   │   │   ├── hooks/
+│   │   │   ├── lib/
+│   │   │   └── utils/
+│   │   ├── .env.example
+│   │   ├── next.config.mjs
+│   │   ├── postcss.config.mjs
+│   │   └── package.json
+│   └── backend/
+│       ├── migrations/
+│       ├── scripts/
+│       ├── src/
+│       │   ├── config/
+│       │   ├── controllers/
+│       │   ├── middleware/
+│       │   ├── models/
+│       │   ├── routes/
+│       │   ├── services/providers/
+│       │   ├── utils/
+│       │   ├── app.js
+│       │   └── index.js
+│       ├── tests/
+│       │   ├── unit/
+│       │   ├── integration/
+│       │   └── contract/
+│       ├── .env.example
+│       └── package.json
+├── .gitignore
+├── package.json
+├── package-lock.json
+├── LICENSE
+└── readme.md
+```
+
+Some directories contain `.gitkeep` files so the approved structure is retained
+in Git until feature code is added. The original empty HTML/CSS/JS starter was
+removed. Its `nyebe_white.png` image is preserved in `web/frontend/public/images`
+as an unused legacy asset; it is not TravelBuddy branding.
+
+## Environment and security
+
+| Setting | Location | Purpose |
+| --- | --- | --- |
+| `BACKEND_URL` | Frontend `.env.local` | Server-only `/api/*` proxy target; defaults to `http://localhost:5000` |
+| `PORT` | Backend `.env` | API port; defaults to 5000 |
+| `NODE_ENV` | Backend environment | `development`, `test`, or `production` |
+| Other backend example settings | Backend `.env` | Reserved for future provider/auth integration; not consumed yet |
+
+Next.js forwards `/api/*` to Express, preserving `/api/v1`. Rebuild the frontend
+after changing `BACKEND_URL` for production. If the backend port changes, update
+this URL too. Browser code should call relative `/api/v1/...` paths.
+
+Keep `.env` files and provider secrets out of Git and browser bundles. Never put
+Gemini, Amadeus, server Maps, or Supabase service-role keys in `NEXT_PUBLIC_*`.
+Use Supabase Auth for password hashing and enforce saved-trip ownership when
+those features are implemented. Health is currently the only public API endpoint.
+
+## Development conventions
+
+- Keep frontend rendering in React; keep provider credentials, orchestration,
+  budget calculations, and database access in Express.
+- Use Tailwind utilities and shared `@theme` tokens in `src/app/globals.css`.
+  Tailwind 4 does not require a `tailwind.config.js` in this setup.
+- Use camelCase application identifiers and PascalCase React components, while
+  retaining framework-required filenames such as `page.js` and `layout.js`.
+- Add versioned contracts under `/api/v1` and tests for new behavior.
+- Validate provider responses and AI output. Label stale/test/estimated data and
+  respect provider caching policies; do not present estimates as confirmed prices.
+
+## Documentation
+
+- [Architecture, responsibilities, and implementation rules](docs/architecture.md)
+- [Current API contract](docs/api/README.md)
+- [Provider adapter responsibilities](web/backend/src/services/providers/README.md)
+- Official guides: [Next.js](https://nextjs.org/docs),
+  [Tailwind with Next.js](https://tailwindcss.com/docs/installation/framework-guides/nextjs),
+  [Express](https://expressjs.com/), [Supabase](https://supabase.com/docs).
+
+## Project team
+
+Alexa Mhel V. Gagan, Michaela Marie V. Gonzales, Quervie B. Manrique,
+Shane D. Oxina, and Sean Peji — TW41, FEU Institute of Technology.
+
+## License
+
+The existing [GNU General Public License v3](LICENSE) is retained.

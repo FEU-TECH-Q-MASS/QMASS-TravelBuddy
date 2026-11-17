@@ -1,0 +1,20 @@
+{
+  "name": "qmass-travelbuddy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TravelBuddy web application and travel integration API",
+  "license": "GPL-3.0-only",
+  "engines": { "node": ">=24 <25", "npm": ">=11" },
+  "workspaces": ["web", "web/frontend", "web/backend"],
+  "scripts": {
+    "dev": "npm run dev --workspace=@travelbuddy/web",
+    "dev:web": "npm run dev",
+    "dev:frontend": "npm run dev --workspace=@travelbuddy/frontend",
+    "dev:backend": "npm run dev --workspace=@travelbuddy/backend",
+    "build": "npm run build --workspace=@travelbuddy/frontend",
+    "start": "npm run start --workspace=@travelbuddy/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspace=@travelbuddy/backend"
+  },
+  "devDependencies": { "concurrently": "^9.2.3" }
+}

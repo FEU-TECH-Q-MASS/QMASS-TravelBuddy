@@ -1,0 +1,9 @@
+{
+  "name": "@travelbuddy/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others -n api,web \"npm run dev --workspace=@travelbuddy/backend\" \"npm run dev --workspace=@travelbuddy/frontend\"",
+    "start": "concurrently --kill-others -n api,web \"npm run start --workspace=@travelbuddy/backend\" \"npm run start --workspace=@travelbuddy/frontend\""
+  }
+}
