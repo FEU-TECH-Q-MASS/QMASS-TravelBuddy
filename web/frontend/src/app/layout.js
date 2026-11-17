@@ -3,6 +3,9 @@ import "./globals.css";
 export const metadata = {
   title: "TravelBuddy | Q-MASS",
   description: "Plan travel around your destination, dates, interests, and budget.",
+  icons: {
+    icon: { url: "/images/TravelBuddy_Favicon.png", type: "image/png" },
+  },
 };
 
 export default function RootLayout({ children }) {
