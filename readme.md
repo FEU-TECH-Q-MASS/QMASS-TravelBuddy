@@ -4,10 +4,12 @@ TravelBuddy is a web travel planner designed to combine a traveler's destination
 dates, interests, and budget with flight, hotel, maps, weather, and holiday data
 to produce a personalized itinerary.
 
-**Status: project foundation.** The repository currently provides a working
-Next.js starter page and Express health API. Accounts, saved trips, AI itinerary
-generation, live provider integrations, and historical imports are not implemented.
-No real travel prices, forecasts, or recommendations are displayed yet.
+**Status: public website and account-interface previews.** The public pages include
+destination browsing, trip preference validation and summaries, an illustrative
+itinerary, FAQs, and a local contact-message preview. Login, signup, and password
+recovery screens are present; authentication, email delivery, saved trips, AI
+generation, live provider integrations, and historical imports are not connected.
+No real travel prices, forecasts, or personalized recommendations are displayed.
 
 ## Technology stack
 
@@ -15,6 +17,7 @@ No real travel prices, forecasts, or recommendations are displayed yet.
 | --- | --- |
 | Web interface | Next.js App Router + React, JavaScript |
 | Styling | Tailwind CSS 4 with its PostCSS plugin |
+| Interface icons | React Icons (`react-icons/fi`, Feather set) |
 | API | Node.js + Express 5, CommonJS |
 | Runtime validation | Zod |
 | Database and authentication | Supabase PostgreSQL + Supabase Auth (planned; backend SDK installed) |
@@ -68,7 +71,7 @@ Stop development with `Ctrl+C`. The root command runs both services together.
 | `npm run dev:frontend` | Start Next.js only on port 3000 |
 | `npm run dev:backend` | Start Express only on port 5000 |
 | `npm run lint` | Lint both applications |
-| `npm test` | Run backend configuration, integration, and API contract tests |
+| `npm test` | Run frontend trip-validation and backend unit, integration, and contract tests |
 | `npm run build` | Build the production frontend |
 | `npm start` | Run the built frontend and backend together |
 
@@ -88,8 +91,9 @@ QMASS-TravelBuddy/
 │   ├── frontend/
 │   │   ├── public/images/
 │   │   ├── src/
-│   │   │   ├── app/           # Next.js routes, layout, global Tailwind styles
-│   │   │   ├── components/    # Reusable React components
+│   │   │   ├── app/           # Direct routes: about/, login/, explore/[slug]/, etc.
+│   │   │   ├── components/    # Shared components, including Icon.js and AuthForm.js
+│   │   │   │   └── layout/    # Navbar.js, Footer.js, Logo.js
 │   │   │   ├── hooks/
 │   │   │   ├── lib/
 │   │   │   └── utils/
@@ -125,8 +129,46 @@ QMASS-TravelBuddy/
 
 Some directories contain `.gitkeep` files so the approved structure is retained
 in Git until feature code is added. The original empty HTML/CSS/JS starter was
-removed. Its `nyebe_white.png` image is preserved in `web/frontend/public/images`
-as an unused legacy asset; it is not TravelBuddy branding.
+removed. Current TravelBuddy branding and local travel photographs are under
+`web/frontend/public/images`. See [image credits](docs/image-credits.md).
+
+## Public pages and local preview
+
+Once dependencies are installed, run `npm run dev` and open
+<http://localhost:3000>. If a server is already running there, use it; do not launch
+a second copy. The terminal prints the actual URL if another application uses 3000.
+No provider keys are required to view or interact with the public website.
+
+| Route | Experience |
+| --- | --- |
+| `/` | Landing page, trip preferences, summary preview, sample itinerary, FAQ |
+| `/explore` | Destination browsing with region, interest, and text filters |
+| `/explore/bali` | Destination preview (also `kyoto`, `palawan`, `santorini`, `dolomites`) |
+| `/how-it-works` | Planning steps, planned data inputs, sample itinerary, FAQ |
+| `/about` | Project context, principles, and Q-MASS team |
+| `/contact` | Contact information and local message-review form |
+| `/login` | Login interface with an inline Sign Up link |
+| `/signup` | Signup interface with validation and password guidance |
+| `/forgot-password` | Password-recovery interface preview |
+
+The desktop navbar contains Home, Explore, How It Works, About, Contact, and Log In.
+Sign Up is linked inside Login, not shown as a separate navbar action. Mobile uses
+a collapsible menu with the same links. Logo and favicon use the existing branding.
+
+The trip preview validates future dates, counts days/nights, and summarizes the
+total budget, currency, travelers, interests, and airfare preference. Destination
+preview links prefill the destination. Example itinerary amounts are illustrative,
+not live prices or exchange-rate conversions. All form previews stay in browser
+memory: no account is created, email sent, trip saved, or contact message delivered.
+Use sample credentials when trying account screens; they are not sent or stored.
+
+`npm test` runs frontend trip-validation tests plus the existing backend checks.
+`npm run lint` and `npm run build` check both code quality and production compilation.
+All routes live directly under `src/app`, such as `src/app/about/page.js`,
+`src/app/login/page.js`, and `src/app/explore/[slug]/page.js`. The root layout
+provides the navbar, main-content wrapper, and footer for every page. Shared
+components live directly in `src/components`, with navbar, footer, and logo retained
+in `src/components/layout`.
 
 ## Environment and security
 

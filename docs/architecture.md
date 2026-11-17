@@ -9,15 +9,20 @@ as an external integration called by the Node.js backend.
 
 ## Implemented foundation
 
-- Next.js App Router and React with JavaScript.
+- Next.js App Router and React with JavaScript, public pages, destination browsing,
+  local trip/contact previews, and account-entry interfaces.
 - Tailwind CSS 4 through `@tailwindcss/postcss` and `globals.css`.
 - Express 5, a `/api/v1/health` endpoint, JSON errors, and configuration validation.
 - Root npm workspaces with a single lockfile and shared development commands.
+- React Icons Feather set for all interface icons.
+- Frontend tests for trip validation and calendar day/night calculations.
 - Backend tests for configuration, health contract, and HTTP error handling.
 
 Supabase PostgreSQL/Auth, Gemini, Amadeus, Google Maps, OpenWeather, and Nager.Date
 are planned integrations. No account, saved-trip, import, caching, background-job,
-or itinerary-generation implementation exists in this scaffold.
+or itinerary-generation backend implementation exists in this scaffold. Account
+forms explicitly state that authentication is unavailable; valid submissions do
+not call a provider or persist credentials. Contact previews do not deliver messages.
 
 ## Request flow
 
@@ -80,3 +85,22 @@ Tailwind is the approved styling system. Define shared tokens in `@theme` in
 `frontend/src/app/globals.css`. Tailwind 4 uses CSS-first configuration here;
 there is no legacy `tailwind.config.js` or separate Autoprefixer setup.
 Bootstrap, shadcn/ui, MUI, and Mantine are not installed.
+
+## Public website
+
+All pages live directly under `src/app`, for example `src/app/about/page.js` and
+`src/app/login/page.js`. The root `src/app/layout.js` provides the shared navbar,
+main-content wrapper, and footer, including for the 404 page. Destination detail
+pages are statically generated from curated `src/lib/destinations.js` data;
+unknown slugs return 404.
+
+The home route reads an optional destination query parameter to prefill the form.
+`src/lib/tripPlanning.js` validates inputs and calculates nights with UTC calendar
+dates so daylight-saving changes do not affect totals. The preview is not a saved
+trip. Filtering, form previews, password visibility, and mobile navigation use
+client components; the rest of the content remains server-rendered.
+
+Shared components live directly in `src/components`. The retained
+`src/components/layout` folder contains `Navbar.js`, `Footer.js`, and `Logo.js`.
+All UI icons are imported from `react-icons/fi` through `components/Icon.js`.
+Photography is served locally with Next.js Image. Credits are in `image-credits.md`.

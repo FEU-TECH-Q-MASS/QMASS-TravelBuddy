@@ -14,7 +14,7 @@
     "build": "npm run build --workspace=@travelbuddy/frontend",
     "start": "npm run start --workspace=@travelbuddy/web",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspace=@travelbuddy/backend"
+    "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": { "concurrently": "^9.2.3" }
 }

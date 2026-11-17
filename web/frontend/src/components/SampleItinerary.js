@@ -1,0 +1,80 @@
+import Image from "next/image";
+import Icon from "@/components/Icon";
+const activities = [
+  [
+    "09:00",
+    "A slow morning in the old town",
+    "Breakfast and a neighborhood walk",
+    "₱450",
+  ],
+  [
+    "12:00",
+    "A taste of something local",
+    "Lunch and a little market exploring",
+    "₱650",
+  ],
+  [
+    "15:00",
+    "Take the scenic way back",
+    "Garden visit and local transport",
+    "₱400",
+  ],
+];
+export default function SampleItinerary() {
+  return (
+    <div className="grid overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_12px_50px_-30px_rgba(9,45,61,0.3)] lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="relative min-h-72">
+        <Image
+          src="/images/kyoto.jpg"
+          alt="An atmospheric evening in Kyoto's historic streets"
+          fill
+          sizes="(max-width: 1024px) 100vw, 45vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 to-transparent" />
+        <div className="absolute right-8 bottom-8 left-8 text-white">
+          <span className="rounded-full bg-white/20 px-3 py-1.5 text-[10px] font-semibold tracking-wider backdrop-blur">
+            ILLUSTRATIVE ITINERARY
+          </span>
+          <h3 className="mt-5 text-3xl font-semibold">
+            A day to get lost in Kyoto.
+          </h3>
+          <p className="mt-3 flex items-center gap-2 text-sm text-white/80">
+            <Icon name="pin" size={16} /> Kyoto, Japan · One traveler
+          </p>
+        </div>
+      </div>
+      <div className="p-7 sm:p-10">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Your day, thoughtfully put together</h3>
+          <Icon name="sun" className="text-amber-500" />
+        </div>
+        <div className="mt-7">
+          {activities.map(([time, title, text, cost]) => (
+            <div
+              key={time}
+              className="grid grid-cols-[44px_1fr_auto] gap-3 border-b border-slate-100 py-5"
+            >
+              <span className="pt-1 text-[11px] text-brand-700">{time}</span>
+              <div>
+                <h4 className="text-sm font-semibold">{title}</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{text}</p>
+              </div>
+              <span className="text-xs font-semibold">{cost}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-50 p-4">
+          <span className="text-xs font-semibold">Example day budget</span>
+          <strong className="text-xl text-brand-700">
+            ₱1,500 <span className="text-xs font-normal">PHP</span>
+          </strong>
+        </div>
+        <p className="mt-3 text-[11px] leading-5 text-slate-500">
+          Illustrative amounts only, not current quotes or currency conversions.
+          Excludes flights, accommodation, insurance, and other trip expenses.
+        </p>
+      </div>
+    </div>
+  );
+}
