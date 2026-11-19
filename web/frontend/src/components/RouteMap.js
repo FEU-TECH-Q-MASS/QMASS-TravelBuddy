@@ -1,11 +1,14 @@
 "use client";
+import { resolveTravelLocation } from "@/lib/travelOptions";
 
 export default function RouteMap({ route, places, origin, destination }) {
-  const locations = places?.length ? places : route?.stops?.map((item) => item.location || item.title) || [];
+  const locations = (places?.length ? places : route?.stops?.map((item) => item.location || item.title) || [])
+    .map(resolveTravelLocation)
+    .filter(Boolean);
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!locations.length || !key) return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Google Maps is not configured for the frontend. Add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to <code>web/frontend/.env</code> to display the live route.</div>;
-  const start = origin || locations[0];
-  const end = destination || locations.at(-1);
+  const start = resolveTravelLocation(origin) || locations[0];
+  const end = resolveTravelLocation(destination) || locations.at(-1);
   const waypoints = locations.slice(0, -1).join("|");
   const query = new URLSearchParams({ key, origin: start, destination: end, mode: "driving" });
   if (waypoints) query.set("waypoints", waypoints);

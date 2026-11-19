@@ -15,4 +15,18 @@ export const destinationOptions = [
   ["USU", "Coron, Philippines"],
   ["TAC", "Tacloban, Philippines"],
   ["LAO", "Laoag, Philippines"],
+  ["PAL", "Palawan, Philippines"],
+  ["BOH", "Bohol, Philippines"],
+  ["BOR", "Boracay, Philippines"],
+  ["BAN", "Banaue, Philippines"],
 ];
+
+const locationLabels = new Map([
+  ...airportOptions.map(([code, label]) => [code, `${label}, Philippines`]),
+  ...destinationOptions,
+]);
+
+export function resolveTravelLocation(value) {
+  const location = String(value || "").trim();
+  return locationLabels.get(location.toUpperCase()) || location;
+}

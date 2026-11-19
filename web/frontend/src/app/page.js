@@ -92,8 +92,8 @@ export default async function HomePage({ searchParams }) {
             Explore destinations <Icon size={17} />
           </Link>
         </div>
-        <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {destinations.slice(0, 4).map((destination) => (
+        <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {destinations.slice(0, 5).map((destination) => (
             <DestinationCard key={destination.slug} destination={destination} />
           ))}
         </div>

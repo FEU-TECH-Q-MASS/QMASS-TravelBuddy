@@ -32,7 +32,7 @@ function makeItinerary(input) {
   }));
 }
 function enrichTrip(input, ownerId) {
-  const idValue = id("trip");
+  const idValue = crypto.randomUUID();
   const itinerary = makeItinerary(input);
   const nights = Math.max(0, itinerary.length - 1);
   const currency = input.currency || "PHP";
@@ -40,6 +40,7 @@ function enrichTrip(input, ownerId) {
   const hotel = nights * 3500;
   const activities = itinerary.reduce((sum, day) => sum + day.activities.reduce((daySum, activity) => daySum + activity.cost, 0), 0);
   const trip = { id: idValue, ownerId, ...input, travelers: Number(input.travelers), budget: Number(input.budget), currency, itinerary, offers: { flights: [{ id: id("flight"), route: `Manila → ${input.destination}`, airline: "TravelBuddy Demo Air", fare: flight || 8500, currency, availability: "Demo availability", baggage: "20 kg included", mandatoryCharges: "Included", quotedAt: new Date().toISOString() }], hotels: [{ id: id("hotel"), name: "TravelBuddy City Stay", location: input.destination, guests: Number(input.travelers), nightlyRate: 3500, totalStay: hotel, currency, availability: "Demo availability", taxesAndFees: "Included", quotedAt: new Date().toISOString() }] }, budgetBreakdown: { flights: flight, accommodation: hotel, activities, meals: itinerary.length * 900, transportation: itinerary.length * 500, estimatedTotal: flight + hotel + activities + itinerary.length * 1400, remaining: Number(input.budget) - (flight + hotel + activities + itinerary.length * 1400), currency }, conditions: { weather: "Demo forecast: warm with a chance of showers", holidays: "Check local public holidays before departure", seasonalContext: "Typical seasonal conditions", sourceTimestamp: new Date().toISOString(), forecastAvailable: false }, routes: itinerary.map((day) => ({ day: day.day, totalDistanceKm: day.activities.reduce((sum, activity) => sum + activity.distanceKmFromPrevious, 0), estimatedTravelMinutes: day.activities.reduce((sum, activity) => sum + activity.travelMinutesFromPrevious, 0), stops: day.activities.map((activity) => ({ title: activity.title, lat: 14.5995 + day.day / 100, lng: 120.9842 + day.day / 100 })) })), status: "ready", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  trip.offers = { flights: [], hotels: [] };
   trips.set(idValue, trip);
   return trip;
 }
