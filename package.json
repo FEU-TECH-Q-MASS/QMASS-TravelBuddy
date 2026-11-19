@@ -4,8 +4,15 @@
   "private": true,
   "description": "TravelBuddy web application and travel integration API",
   "license": "GPL-3.0-only",
-  "engines": { "node": ">=24 <25", "npm": ">=11" },
-  "workspaces": ["web", "web/frontend", "web/backend"],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
+  "workspaces": [
+    "web",
+    "web/frontend",
+    "web/backend"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace=@travelbuddy/web",
     "dev:web": "npm run dev",
@@ -16,5 +23,11 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },
-  "devDependencies": { "concurrently": "^9.2.3" }
+  "devDependencies": {
+    "concurrently": "^9.2.3"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2"
+  }
 }
