@@ -1,21 +1,19 @@
 const crypto = require("node:crypto");
 
 const users = new Map();
-const sessions = new Map();
 const trips = new Map();
 const notifications = new Map();
-const resetTokens = new Map();
 const priceTrackers = new Map();
 
 function id(prefix) { return `${prefix}_${crypto.randomUUID()}`; }
 function seed() {
   if (users.size) return;
-  const user = { id: "user_demo", name: "Demo Traveler", email: "demo@travelbuddy.test", passwordHash: crypto.scryptSync("demo1234", "travelbuddy-demo-salt", 64).toString("hex"), role: "admin", active: true, preferences: { currency: "PHP", interests: ["Nature", "Food"] }, createdAt: new Date().toISOString() };
+  const user = { id: "user_demo", name: "Demo Traveler", email: "demo@travelbuddy.test", role: "admin", active: true, preferences: { currency: "PHP", interests: ["Nature", "Food"] }, createdAt: new Date().toISOString() };
   users.set(user.id, user);
 }
 seed();
 
-function publicUser(user) { const safe = { ...user }; delete safe.password; delete safe.passwordHash; delete safe.supabaseUser; return safe; }
+function publicUser(user) { const safe = { ...user }; delete safe.password; delete safe.supabaseUser; return safe; }
 function makeItinerary(input) {
   const start = new Date(`${input.departure}T00:00:00Z`);
   const end = new Date(`${input.returnDate}T00:00:00Z`);
@@ -56,4 +54,4 @@ function applyItinerary(trip, itinerary, generation) {
   return trip;
 }
 
-module.exports = { users, sessions, trips, notifications, resetTokens, priceTrackers, id, publicUser, enrichTrip, applyItinerary };
+module.exports = { users, trips, notifications, priceTrackers, id, publicUser, enrichTrip, applyItinerary };

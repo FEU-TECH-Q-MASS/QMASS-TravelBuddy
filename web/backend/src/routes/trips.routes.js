@@ -9,7 +9,10 @@ router.get("/", (req, res, next) => {
   // keeping the actual trip collection private to authenticated users.
   if (!req.headers.authorization) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Endpoint not found." } });
   requireAuth(req, res, next);
-}, (req, res) => res.json({ trips: [...trips.values()].filter((trip) => trip.ownerId === req.user.id) }));
+}, (req, res) => {
+  // Future database-backed handlers must always filter by req.user.id.
+  res.json({ trips: [...trips.values()].filter((trip) => trip.ownerId === req.user.id) });
+});
 router.use(requireAuth);
 router.post("/", (req, res) => { const input = req.body || {}; const minimum = minimumBudgets[input.currency] || 1; if (!input.origin || !input.destination || !input.departure || !input.returnDate || !input.budget) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Origin, destination, dates, travelers, and budget are required." } }); if (Number(input.budget) < minimum) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: `Budget must be at least ${minimum} ${input.currency || ""}.` } }); res.status(201).json({ trip: enrichTrip(input, req.user.id) }); });
 router.get("/:id", (req, res) => { const trip = trips.get(req.params.id); if (!trip || trip.ownerId !== req.user.id) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } }); res.json({ trip }); });
