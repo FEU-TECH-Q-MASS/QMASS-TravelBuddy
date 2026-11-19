@@ -96,7 +96,7 @@ async function getTravelConditions(trip) {
         conditions.weather.status =
           "outside_forecast_window";
       }
-    } catch (error) {
+    } catch {
       conditions.weather.error =
         "Weather information is temporarily unavailable.";
     }
@@ -146,7 +146,7 @@ async function getTravelConditions(trip) {
           items: holidays,
         };
       }
-    } catch (error) {
+    } catch {
       conditions.holidays.error =
         "Holiday information is temporarily unavailable.";
     }
