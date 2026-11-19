@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Keep numeric fields clean while preserving numeric keyboard/input behavior. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+/* Keep the route map while hiding the deprecated day-picker cards. */
+div.mt-6.flex.gap-2.overflow-x-auto.border-b.border-slate-200.pb-3 {
+  display: none !important;
+}
+
+/* Remove the redundant route summary card; its map action lives in the map header. */
+div.mt-5.flex.flex-wrap.items-center.justify-between.gap-3.rounded-2xl.border.border-slate-200.bg-white.p-5 {
+  display: none !important;
+}
+
+
 @theme {
   --color-brand-50: #edfaff;
   --color-brand-500: #00b4db;

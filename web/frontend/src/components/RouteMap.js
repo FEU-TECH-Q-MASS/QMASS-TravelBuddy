@@ -1,4 +1,5 @@
 "use client";
+
 import { resolveTravelLocation } from "@/lib/travelOptions";
 
 export default function RouteMap({ route, places, origin, destination }) {
@@ -11,6 +12,10 @@ export default function RouteMap({ route, places, origin, destination }) {
   const end = resolveTravelLocation(destination) || locations.at(-1);
   const waypoints = locations.slice(0, -1).join("|");
   const query = new URLSearchParams({ key, origin: start, destination: end, mode: "driving" });
-  if (waypoints) query.set("waypoints", waypoints);
-  return <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label={`Google Maps route for day ${route.day}`}><div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><p className="text-sm font-semibold text-brand-900">Day {route.day} route</p><p className="text-xs text-slate-500">Google Maps directions</p></div><iframe title={`Google Maps route for day ${route.day}`} src={`https://www.google.com/maps/embed/v1/directions?${query.toString()}`} className="h-105 w-full border-0" loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>;
+  const directionsQuery = new URLSearchParams({ api: "1", origin: start, destination: end, travelmode: "driving" });
+  if (waypoints) {
+    query.set("waypoints", waypoints);
+    directionsQuery.set("waypoints", waypoints);
+  }
+  return <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Google Maps route"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><p className="text-sm font-semibold text-brand-900">Route</p><a href={`https://www.google.com/maps/dir/?${directionsQuery.toString()}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700 hover:underline">Open in Google Maps ↗</a></div><iframe title="Google Maps route" src={`https://www.google.com/maps/embed/v1/directions?${query.toString()}`} className="h-105 w-full border-0" loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>;
 }

@@ -26,9 +26,11 @@ export default function AuthForm({ mode }) {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   function submit(event) {
     event.preventDefault();
+    if (loading) return;
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form));
     const nextErrors = {};
@@ -55,7 +57,20 @@ export default function AuthForm({ mode }) {
     const request = recovery
       ? api("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: values.email }) })
       : api(`/auth/${signup ? "register" : "login"}`, { method: "POST", body: JSON.stringify(signup ? { name: `${values.firstName} ${values.lastName}`, email: values.email, password: values.password } : { email: values.email, password: values.password }) });
-      request.then((result) => { if (result?.token) { saveToken(result.token); router.push("/"); } else if (result?.resetToken) router.push(`/reset-password?token=${encodeURIComponent(result.resetToken)}`); else setNotice(result.message || "Request completed."); }).catch((error) => setNotice(error.message));
+    setLoading(true);
+    request
+      .then((result) => {
+        if (result?.token) {
+          saveToken(result.token);
+          router.push("/");
+        } else if (result?.resetToken) {
+          router.push(`/reset-password?token=${encodeURIComponent(result.resetToken)}`);
+        } else {
+          setNotice(result.message || "Request completed.");
+        }
+      })
+      .catch((error) => setNotice(error.message))
+      .finally(() => setLoading(false));
     if (!recovery) {
       form.elements.namedItem("password").value = "";
       setPassword("");
@@ -205,13 +220,14 @@ export default function AuthForm({ mode }) {
             </Link>
           </div>
         )}
-        <button type="submit" className="btn btn-primary w-full">
-          {recovery
-            ? "Send Recovery Request"
-            : signup
-              ? "Create Account"
-              : "Log In"}{" "}
-          <Icon size={17} />
+        <button
+          type="submit"
+          disabled={loading}
+          aria-busy={loading}
+          className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {loading ? "Please wait…" : recovery ? "Send Recovery Request" : signup ? "Create Account" : "Log In"}{" "}
+          {!loading && <Icon size={17} />}
         </button>
         {notice && (
           <p role="status" className="notice">
@@ -227,6 +243,21 @@ export default function AuthForm({ mode }) {
       <p className="mt-7 text-center text-[11px] leading-5 text-slate-400">
         Made for curious travelers. Built with thoughtful plans in mind.
       </p>
+      {loading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/25 px-6 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex min-w-64 flex-col items-center rounded-2xl bg-white px-8 py-7 text-center shadow-2xl">
+            <span className="h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-700" aria-hidden="true" />
+            <p className="mt-4 font-semibold text-brand-900">
+              {recovery ? "Preparing your recovery link…" : signup ? "Creating your account…" : "Signing you in…"}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">This should only take a moment.</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

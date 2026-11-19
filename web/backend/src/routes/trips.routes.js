@@ -31,7 +31,6 @@ router.get("/:id", async (req, res, next) => {
   try {
     const trip = await getTrip(req.params.id, req.user.id);
     if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
-    if (!trip.providerStatus) { trip.offers = { flights: [], hotels: [] }; await saveTrip(trip); }
     res.json({ trip });
   } catch (error) { next(error); }
 });

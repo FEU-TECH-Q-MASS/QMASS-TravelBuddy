@@ -7,19 +7,14 @@ import { interestOptions } from "@/lib/tripPlanning";
 
 export default function DestinationExplorer() {
   const [interest, setInterest] = useState("All");
-  const [region, setRegion] = useState("All");
   const [search, setSearch] = useState("");
   const filtered = destinations.filter(
     (item) =>
       (interest === "All" || item.interests.includes(interest)) &&
-      (region === "All" || region === item.region) &&
-      `${item.name} ${item.country}`
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
+      `${item.name} ${item.country}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
   function reset() {
     setInterest("All");
-    setRegion("All");
     setSearch("");
   }
   return (
@@ -44,36 +39,19 @@ export default function DestinationExplorer() {
             ))}
           </div>
         </fieldset>
-        <div className="flex flex-wrap gap-3">
-          <div>
-            <label htmlFor="region" className="field-label">
-              Region
-            </label>
-            <select
-              id="region"
-              value={region}
-              onChange={(event) => setRegion(event.target.value)}
+        <div className="w-full md:w-64">
+          <label htmlFor="destination-search" className="field-label">
+            Search destinations
+          </label>
+          <div className="field-icon">
+            <Icon name="pin" size={18} />
+            <input
+              id="destination-search"
               className="input"
-            >
-              <option value="All">All regions</option>
-              <option>Asia</option>
-              <option>Europe</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="destination-search" className="field-label">
-              Search
-            </label>
-            <div className="field-icon">
-              <Icon name="pin" size={18} />
-              <input
-                id="destination-search"
-                className="input"
-                placeholder="Destination or country"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
+              placeholder="Search by name"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -102,7 +80,7 @@ export default function DestinationExplorer() {
             A different direction, perhaps?
           </h2>
           <p className="mt-3 text-sm text-slate-500">
-            Try another interest, region, or destination name.
+            Try another interest or search term.
           </p>
           <button onClick={reset} className="btn btn-dark mt-6" type="button">
             Clear filters
