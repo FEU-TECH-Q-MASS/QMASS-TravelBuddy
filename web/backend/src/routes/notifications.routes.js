@@ -1,8 +1,13 @@
 const router = require("express").Router();
 const { requireAuth } = require("../middleware/auth.middleware");
-const { notifications, id } = require("../store");
+const { notifications, priceTrackers, id } = require("../store");
+const { checkPrices } = require("../services/price-tracking.service");
 router.use(requireAuth);
 router.get("/", (req, res) => res.json({ notifications: [...notifications.values()].filter((item) => item.userId === req.user.id) }));
 router.post("/", (req, res) => { const item = { id: id("notification"), userId: req.user.id, title: req.body?.title || "TravelBuddy alert", message: req.body?.message || "Your travel update is ready.", read: false, createdAt: new Date().toISOString() }; notifications.set(item.id, item); res.status(201).json({ notification: item }); });
 router.patch("/:id/read", (req, res) => { const item = notifications.get(req.params.id); if (!item || item.userId !== req.user.id) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Notification not found." } }); item.read = true; res.json({ notification: item }); });
+router.get("/tracking", (req, res) => res.json({ trackers: [...priceTrackers.values()].filter((item) => item.userId === req.user.id) }));
+router.post("/tracking", (req, res) => { if (!req.body?.tripId || !["flight", "hotel"].includes(req.body.type)) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "tripId and type (flight or hotel) are required." } }); const tracker = { id: id("tracker"), userId: req.user.id, tripId: req.body.tripId, type: req.body.type, threshold: Math.min(0.5, Math.max(0.01, Number(req.body.threshold || 0.1))), lastPrice: null, createdAt: new Date().toISOString() }; priceTrackers.set(tracker.id, tracker); res.status(201).json({ tracker }); });
+router.delete("/tracking/:id", (req, res) => { const tracker = priceTrackers.get(req.params.id); if (!tracker || tracker.userId !== req.user.id) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Price tracker not found." } }); priceTrackers.delete(req.params.id); res.status(204).end(); });
+router.post("/tracking/check", async (_req, res) => { await checkPrices(); res.json({ message: "Price check completed." }); });
 module.exports = router;

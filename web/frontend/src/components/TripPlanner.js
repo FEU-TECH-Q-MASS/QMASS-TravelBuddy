@@ -146,6 +146,7 @@ export default function TripPlanner({ initialDestination = "" }) {
                 max="1000000000"
                 step="0.01"
                 placeholder="Your budget"
+                  defaultValue="10000"
                 className="input"
                 required
                 {...props("budget")}

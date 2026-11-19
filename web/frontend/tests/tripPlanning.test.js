@@ -5,7 +5,7 @@ import { createTripSummary } from "../src/lib/tripPlanning.js";
 test("budget respects the currency's minor units", () => {
   assert.equal(createTripSummary({ ...input, budget: "0.001" }, "2027-01-01").summary, null);
   assert.equal(createTripSummary({ ...input, budget: "100.50", currency: "JPY" }, "2027-01-01").summary, null);
-  assert.equal(createTripSummary({ ...input, budget: "100.50" }, "2027-01-01").summary.budget, 100.5);
+  assert.equal(createTripSummary({ ...input, budget: "10000" }, "2027-01-01").summary.budget, 10000);
 });
 const input = {
   destination: " Kyoto ",

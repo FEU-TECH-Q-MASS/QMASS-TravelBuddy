@@ -144,7 +144,7 @@ No provider keys are required to view or interact with the public website.
 | --- | --- |
 | `/` | Landing page, trip preferences, summary preview, sample itinerary, FAQ |
 | `/explore` | Destination browsing with region, interest, and text filters |
-| `/explore/bali` | Destination preview (also `kyoto`, `palawan`, `santorini`, `dolomites`) |
+| `/explore/palawan` | Destination preview (also `bohol`, `cebu`, `boracay`, `banaue`) |
 | `/how-it-works` | Planning steps, planned data inputs, sample itinerary, FAQ |
 | `/about` | Project context, principles, and Q-MASS team |
 | `/contact` | Contact information and local message-review form |

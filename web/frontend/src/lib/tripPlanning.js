@@ -6,6 +6,7 @@ export const interestOptions = [
   "Adventure",
 ];
 export const currencies = ["PHP", "USD", "EUR", "JPY"];
+export const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
 
 function parseDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -31,8 +32,9 @@ export function createTripSummary(input, today) {
     errors.returnDate = "Return date must be on or after departure.";
   if (!Number.isInteger(travelers) || travelers < 1 || travelers > 99)
     errors.travelers = "Enter 1–99 travelers.";
-  if (!Number.isFinite(budget) || budget <= 0 || budget > 1000000000)
-    errors.budget = "Enter a positive total budget up to 1,000,000,000.";
+  const minimumBudget = minimumBudgets[input.currency] || 1;
+  if (!Number.isFinite(budget) || budget < minimumBudget || budget > 1000000000)
+    errors.budget = `Enter a budget of at least ${minimumBudget.toLocaleString()} ${input.currency || ""}.`;
   else {
     const minorUnitFactor = input.currency === "JPY" ? 1 : 100;
     if (Math.abs(budget * minorUnitFactor - Math.round(budget * minorUnitFactor)) > 0.000001)
