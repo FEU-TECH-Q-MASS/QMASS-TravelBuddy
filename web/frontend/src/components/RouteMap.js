@@ -1,2 +1,13 @@
 "use client";
-export default function RouteMap({ routes }) { const points = routes.flatMap((route) => route.stops); if (!points.length) return null; const lats = points.map((point) => point.lat), lngs = points.map((point) => point.lng); const minLat = Math.min(...lats), maxLat = Math.max(...lats), minLng = Math.min(...lngs), maxLng = Math.max(...lngs); const point = (item) => `${20 + ((item.lng - minLng) / Math.max(maxLng - minLng, 0.001)) * 360},${280 - ((item.lat - minLat) / Math.max(maxLat - minLat, 0.001)) * 240}`; return <div className="overflow-hidden rounded-2xl border bg-[#eef8f5]" aria-label="Schematic route map"><svg viewBox="0 0 400 320" role="img" className="h-auto w-full"><path d="M0 270 C90 220 120 290 205 235 S320 190 400 220" fill="none" stroke="#c5e8dc" strokeWidth="70" /><path d="M0 90 C100 130 135 45 230 95 S330 120 400 70" fill="none" stroke="#d8f0eb" strokeWidth="45" />{routes.map((route) => <polyline key={route.day} points={route.stops.map(point).join(" ")} fill="none" stroke="#087c9a" strokeWidth="3" strokeDasharray="7 5" />)}{points.map((item, index) => <g key={`${item.title}-${index}`}><circle cx={point(item).split(",")[0]} cy={point(item).split(",")[1]} r="7" fill="#ff9d00" stroke="white" strokeWidth="3" /><text x={Number(point(item).split(",")[0]) + 10} y={Number(point(item).split(",")[1]) + 4} fontSize="9" fill="#092d3d">{index + 1}. {item.title.slice(0, 24)}</text></g>)}</svg></div>; }
+
+export default function RouteMap({ route, places, origin, destination }) {
+  const locations = places?.length ? places : route?.stops?.map((item) => item.location || item.title) || [];
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!locations.length || !key) return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Google Maps is not configured for the frontend. Add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to <code>web/frontend/.env</code> to display the live route.</div>;
+  const start = origin || locations[0];
+  const end = destination || locations.at(-1);
+  const waypoints = locations.slice(0, -1).join("|");
+  const query = new URLSearchParams({ key, origin: start, destination: end, mode: "driving" });
+  if (waypoints) query.set("waypoints", waypoints);
+  return <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label={`Google Maps route for day ${route.day}`}><div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><p className="text-sm font-semibold text-brand-900">Day {route.day} route</p><p className="text-xs text-slate-500">Google Maps directions</p></div><iframe title={`Google Maps route for day ${route.day}`} src={`https://www.google.com/maps/embed/v1/directions?${query.toString()}`} className="h-105 w-full border-0" loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>;
+}

@@ -15,7 +15,7 @@ function seed() {
 }
 seed();
 
-function publicUser(user) { const safe = { ...user }; delete safe.password; delete safe.passwordHash; return safe; }
+function publicUser(user) { const safe = { ...user }; delete safe.password; delete safe.passwordHash; delete safe.supabaseUser; return safe; }
 function makeItinerary(input) {
   const start = new Date(`${input.departure}T00:00:00Z`);
   const end = new Date(`${input.returnDate}T00:00:00Z`);
@@ -25,9 +25,9 @@ function makeItinerary(input) {
     day: index + 1,
     date: new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10),
     activities: [
-      { id: id("activity"), time: "09:00", title: `${interests[index % interests.length]} morning in ${input.destination}`, durationMinutes: 120, cost: 500, travelMinutesFromPrevious: 0, distanceKmFromPrevious: 0 },
-      { id: id("activity"), time: "13:00", title: "Local lunch and neighborhood walk", durationMinutes: 120, cost: 650, travelMinutesFromPrevious: 25, distanceKmFromPrevious: 3.2 },
-      { id: id("activity"), time: "17:00", title: "Sunset viewpoint and free time", durationMinutes: 120, cost: 300, travelMinutesFromPrevious: 20, distanceKmFromPrevious: 2.4 },
+      { id: id("activity"), time: "09:00", title: `${interests[index % interests.length]} morning in ${input.destination}`, location: input.destination, durationMinutes: 120, cost: 500, travelMinutesFromPrevious: 0, distanceKmFromPrevious: 0 },
+      { id: id("activity"), time: "13:00", title: "Local lunch and neighborhood walk", location: input.destination, durationMinutes: 120, cost: 650, travelMinutesFromPrevious: 25, distanceKmFromPrevious: 3.2 },
+      { id: id("activity"), time: "17:00", title: "Sunset viewpoint and free time", location: input.destination, durationMinutes: 120, cost: 300, travelMinutesFromPrevious: 20, distanceKmFromPrevious: 2.4 },
     ],
   }));
 }
