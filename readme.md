@@ -21,7 +21,7 @@ remain follow-up work.
 | Interface icons | React Icons (`react-icons/fi`, Feather set) |
 | API | Node.js + Express 5, CommonJS |
 | Runtime validation | Zod |
-| Database and authentication | In-memory local MVP; Supabase PostgreSQL + Supabase Auth planned for production |
+| Database and authentication | Supabase Auth for accounts; trip/provider persistence remains local MVP |
 | AI itinerary generation | Google Gemini API (planned) |
 | Flights and hotels | Amadeus APIs (planned) |
 | Places and travel routes | Google Maps APIs (planned) |
@@ -163,8 +163,8 @@ a collapsible menu with the same links. Logo and favicon use the existing brandi
 
 The public trip preview validates future dates, counts days/nights, and summarizes
 the total budget, currency, travelers, interests, and airfare preference. Signed-in
-users can use the homepage planner to generate and save a local demo trip. The seeded demo
-account is `demo@travelbuddy.test` with password `demo1234`.
+users can use the homepage planner to generate and save a local demo trip. Create accounts
+through the configured Supabase Auth signup screen.
 
 `npm test` runs frontend trip-validation tests plus the existing backend checks.
 `npm run lint` and `npm run build` check both code quality and production compilation.
@@ -181,7 +181,8 @@ in `src/components/layout`.
 | `BACKEND_URL` | Frontend `.env.local` | Server-only `/api/*` proxy target; defaults to `http://localhost:5000` |
 | `PORT` | Backend `.env` | API port; defaults to 5000 |
 | `NODE_ENV` | Backend environment | `development`, `test`, or `production` |
-| Other backend example settings | Backend `.env` | Reserved for future provider/auth integration; not consumed yet |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Backend `.env` | Server-side token verification and profile authorization |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Frontend `.env.local` | Browser Supabase Auth client |
 
 Next.js forwards `/api/*` to Express, preserving `/api/v1`. Rebuild the frontend
 after changing `BACKEND_URL` for production. If the backend port changes, update
@@ -189,10 +190,9 @@ this URL too. Browser code should call relative `/api/v1/...` paths.
 
 Keep `.env` files and provider secrets out of Git and browser bundles. Never put
 Gemini, Amadeus, server Maps, or Supabase service-role keys in `NEXT_PUBLIC_*`.
-The local API includes `/api/v1/auth`, `/api/v1/trips`, `/api/v1/notifications`,
-and `/api/v1/admin` in addition to health. Replace the in-memory store with
-Supabase Auth and PostgreSQL before production, and preserve the existing trip
-ownership and admin authorization checks.
+The local API includes `/api/v1/me`, `/api/v1/trips`, `/api/v1/notifications`,
+and `/api/v1/admin` in addition to health. Supabase Auth verifies bearer tokens;
+profile roles and active status are checked server-side before protected access.
 
 ## Development conventions
 
