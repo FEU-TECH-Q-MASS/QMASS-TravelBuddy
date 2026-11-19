@@ -1,0 +1,11 @@
+const router = require("express").Router();
+const crypto = require("node:crypto");
+const { users, sessions, publicUser, id } = require("../store");
+const { requireAuth } = require("../middleware/auth.middleware");
+router.post("/register", (req, res) => { const { name, email, password } = req.body || {}; if (!name || !email || !password || password.length < 8) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Name, email, and a password of at least 8 characters are required." } }); if ([...users.values()].some((user) => user.email.toLowerCase() === email.toLowerCase())) return res.status(409).json({ error: { code: "EMAIL_EXISTS", message: "An account with that email already exists." } }); const user = { id: id("user"), name, email, password, role: "traveler", active: true, preferences: { currency: "PHP", interests: [] }, createdAt: new Date().toISOString() }; users.set(user.id, user); const token = crypto.randomUUID(); sessions.set(token, user.id); res.status(201).json({ token, user: publicUser(user) }); });
+router.post("/login", (req, res) => { const { email, password } = req.body || {}; const user = [...users.values()].find((candidate) => candidate.email.toLowerCase() === String(email || "").toLowerCase() && candidate.password === password); if (!user || !user.active) return res.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Email or password is incorrect." } }); const token = crypto.randomUUID(); sessions.set(token, user.id); res.json({ token, user: publicUser(user) }); });
+router.post("/forgot-password", (_req, res) => res.json({ message: "If an account exists, a password reset link has been prepared." }));
+router.get("/me", requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
+router.patch("/me", requireAuth, (req, res) => { const allowed = ["name", "preferences"]; for (const key of allowed) if (req.body?.[key] !== undefined) req.user[key] = req.body[key]; res.json({ user: publicUser(req.user) }); });
+router.post("/logout", requireAuth, (req, res) => { const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, ""); sessions.delete(token); res.status(204).end(); });
+module.exports = router;

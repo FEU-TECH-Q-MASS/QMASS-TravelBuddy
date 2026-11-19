@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
+import { api, saveToken } from "@/lib/api";
+import { useRouter } from "next/navigation";
 const passwordRules = [
   ["At least 8 characters", (value) => value.length >= 8],
   [
@@ -24,6 +26,7 @@ export default function AuthForm({ mode }) {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
+  const router = useRouter();
   function submit(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -49,13 +52,10 @@ export default function AuthForm({ mode }) {
       form.elements.namedItem(Object.keys(nextErrors)[0])?.focus();
       return;
     }
-    setNotice(
-      recovery
-        ? "Password recovery is not connected yet. No email was sent."
-        : signup
-          ? "Account creation is not connected yet. No account was created and your details were not saved."
-          : "Login is not connected yet. Your credentials were not submitted or saved.",
-    );
+    const request = recovery
+      ? api("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: values.email }) })
+      : api(`/auth/${signup ? "register" : "login"}`, { method: "POST", body: JSON.stringify(signup ? { name: `${values.firstName} ${values.lastName}`, email: values.email, password: values.password } : { email: values.email, password: values.password }) });
+    request.then((result) => { if (result?.token) { saveToken(result.token); router.push("/dashboard"); } else setNotice(result.message || "Request completed."); }).catch((error) => setNotice(error.message));
     if (!recovery) {
       form.elements.namedItem("password").value = "";
       setPassword("");
@@ -154,9 +154,7 @@ export default function AuthForm({ mode }) {
         )}
       </p>
       <div className="notice mt-7 text-xs">
-        {recovery
-          ? "Password recovery preview. Email delivery is not available yet."
-          : "Account interface preview. Login and registration are not available yet. Please use sample details rather than a real password."}
+        {recovery ? "We will prepare a reset link for an account matching this email." : "Use your TravelBuddy account to save trips and manage preferences."}
       </div>
       <form onSubmit={submit} noValidate className="mt-7 space-y-5">
         {signup && (
@@ -209,7 +207,7 @@ export default function AuthForm({ mode }) {
         )}
         <button type="submit" className="btn btn-primary w-full">
           {recovery
-            ? "Preview Recovery Request"
+            ? "Send Recovery Request"
             : signup
               ? "Create Account"
               : "Log In"}{" "}
