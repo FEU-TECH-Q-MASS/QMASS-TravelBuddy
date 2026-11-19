@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
-import { api, saveToken } from "@/lib/api";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 const passwordRules = [
   ["At least 8 characters", (value) => value.length >= 8],
@@ -27,7 +27,7 @@ export default function AuthForm({ mode }) {
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
   const router = useRouter();
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form));
@@ -52,10 +52,24 @@ export default function AuthForm({ mode }) {
       form.elements.namedItem(Object.keys(nextErrors)[0])?.focus();
       return;
     }
-    const request = recovery
-      ? api("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: values.email }) })
-      : api(`/auth/${signup ? "register" : "login"}`, { method: "POST", body: JSON.stringify(signup ? { name: `${values.firstName} ${values.lastName}`, email: values.email, password: values.password } : { email: values.email, password: values.password }) });
-      request.then((result) => { if (result?.token) { saveToken(result.token); router.push("/"); } else if (result?.resetToken) router.push(`/reset-password?token=${encodeURIComponent(result.resetToken)}`); else setNotice(result.message || "Request completed."); }).catch((error) => setNotice(error.message));
+    try {
+      const supabase = getSupabaseClient();
+      if (recovery) {
+        await supabase.auth.resetPasswordForEmail(values.email, { redirectTo: `${window.location.origin}/reset-password` });
+        setNotice("If an account exists for that email, a reset link has been sent.");
+      } else if (signup) {
+        const { data, error } = await supabase.auth.signUp({ email: values.email, password: values.password, options: { data: { display_name: `${values.firstName} ${values.lastName}`.trim() } } });
+        if (error) throw error;
+        if (data.session) router.push("/");
+        else setNotice("Account created. Check your email to confirm your account.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: values.email, password: values.password });
+        if (error) throw error;
+        router.push("/");
+      }
+    } catch (error) {
+      setNotice(recovery ? "If an account exists for that email, a reset link has been sent." : signup ? error.message || "Unable to create your account." : "Invalid email or password");
+    }
     if (!recovery) {
       form.elements.namedItem("password").value = "";
       setPassword("");
