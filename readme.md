@@ -4,12 +4,13 @@ TravelBuddy is a web travel planner designed to combine a traveler's destination
 dates, interests, and budget with flight, hotel, maps, weather, and holiday data
 to produce a personalized itinerary.
 
-**Status: public website and account-interface previews.** The public pages include
-destination browsing, trip preference validation and summaries, an illustrative
-itinerary, FAQs, and a local contact-message preview. Login, signup, and password
-recovery screens are present; authentication, email delivery, saved trips, AI
-generation, live provider integrations, and historical imports are not connected.
-No real travel prices, forecasts, or personalized recommendations are displayed.
+**Status: working local MVP.** The public pages include destination browsing and
+trip preference previews. The local API now supports authentication, owned saved
+trips, itinerary workspaces, demo flight and hotel offers, budgets, routes,
+conditions, notifications, preferences, and admin user management. Provider data
+is clearly labeled demo data and is stored in memory; production persistence,
+password hashing, email delivery, AI generation, and live provider integrations
+remain follow-up work.
 
 ## Technology stack
 
@@ -20,7 +21,7 @@ No real travel prices, forecasts, or personalized recommendations are displayed.
 | Interface icons | React Icons (`react-icons/fi`, Feather set) |
 | API | Node.js + Express 5, CommonJS |
 | Runtime validation | Zod |
-| Database and authentication | Supabase PostgreSQL + Supabase Auth (planned; backend SDK installed) |
+| Database and authentication | In-memory local MVP; Supabase PostgreSQL + Supabase Auth planned for production |
 | AI itinerary generation | Google Gemini API (planned) |
 | Flights and hotels | Amadeus APIs (planned) |
 | Places and travel routes | Google Maps APIs (planned) |
@@ -150,17 +151,21 @@ No provider keys are required to view or interact with the public website.
 | `/login` | Login interface with an inline Sign Up link |
 | `/signup` | Signup interface with validation and password guidance |
 | `/forgot-password` | Password-recovery interface preview |
+| `/dashboard` | Signed-in dashboard and saved trips |
+| `/plan` | Authenticated trip setup and itinerary generation |
+| `/trips/:id` | Itinerary, flights, hotels, budget, routes, and conditions workspace |
+| `/account` | Profile and travel preferences |
+| `/notifications` | In-app notification list |
+| `/admin/users` | Admin account and role management |
 
 The desktop navbar contains Home, Explore, How It Works, About, Contact, and Log In.
 Sign Up is linked inside Login, not shown as a separate navbar action. Mobile uses
 a collapsible menu with the same links. Logo and favicon use the existing branding.
 
-The trip preview validates future dates, counts days/nights, and summarizes the
-total budget, currency, travelers, interests, and airfare preference. Destination
-preview links prefill the destination. Example itinerary amounts are illustrative,
-not live prices or exchange-rate conversions. All form previews stay in browser
-memory: no account is created, email sent, trip saved, or contact message delivered.
-Use sample credentials when trying account screens; they are not sent or stored.
+The public trip preview validates future dates, counts days/nights, and summarizes
+the total budget, currency, travelers, interests, and airfare preference. Signed-in
+users can use `/plan` to generate and save a local demo trip. The seeded demo
+account is `demo@travelbuddy.test` with password `demo1234`.
 
 `npm test` runs frontend trip-validation tests plus the existing backend checks.
 `npm run lint` and `npm run build` check both code quality and production compilation.
@@ -185,8 +190,10 @@ this URL too. Browser code should call relative `/api/v1/...` paths.
 
 Keep `.env` files and provider secrets out of Git and browser bundles. Never put
 Gemini, Amadeus, server Maps, or Supabase service-role keys in `NEXT_PUBLIC_*`.
-Use Supabase Auth for password hashing and enforce saved-trip ownership when
-those features are implemented. Health is currently the only public API endpoint.
+The local API includes `/api/v1/auth`, `/api/v1/trips`, `/api/v1/notifications`,
+and `/api/v1/admin` in addition to health. Replace the in-memory store with
+Supabase Auth and PostgreSQL before production, and preserve the existing trip
+ownership and admin authorization checks.
 
 ## Development conventions
 

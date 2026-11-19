@@ -1,0 +1,4 @@
+"use client";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+export default function NotificationsPage() { const [items, setItems] = useState([]); useEffect(() => { api("/notifications").then(({ notifications }) => setItems(notifications)); }, []); return <section className="page-width section-space"><p className="eyebrow">Stay in the know</p><h1 className="page-title">Notifications.</h1><div className="mt-10 space-y-3">{items.length ? items.map((item) => <article key={item.id} className="rounded-2xl border p-5"><div className="flex justify-between"><h2 className="font-semibold">{item.title}</h2><span className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleString()}</span></div><p className="mt-2 text-sm text-slate-500">{item.message}</p></article>) : <p className="notice">No alerts yet. Price and travel alerts will appear here.</p>}</div></section>; }
