@@ -1,3 +1,4 @@
+//USE THIS TO TEST PROVIDERS!!!!
 
 const path = require("node:path");
 const { loadEnvFile } = require("node:process");
