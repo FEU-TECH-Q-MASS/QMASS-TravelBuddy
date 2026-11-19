@@ -152,7 +152,6 @@ No provider keys are required to view or interact with the public website.
 | `/signup` | Signup interface with validation and password guidance |
 | `/forgot-password` | Password-recovery interface preview |
 | `/dashboard` | Signed-in dashboard and saved trips |
-| `/plan` | Authenticated trip setup and itinerary generation |
 | `/trips/:id` | Itinerary, flights, hotels, budget, routes, and conditions workspace |
 | `/account` | Profile and travel preferences |
 | `/notifications` | In-app notification list |
@@ -164,7 +163,7 @@ a collapsible menu with the same links. Logo and favicon use the existing brandi
 
 The public trip preview validates future dates, counts days/nights, and summarizes
 the total budget, currency, travelers, interests, and airfare preference. Signed-in
-users can use `/plan` to generate and save a local demo trip. The seeded demo
+users can use the homepage planner to generate and save a local demo trip. The seeded demo
 account is `demo@travelbuddy.test` with password `demo1234`.
 
 `npm test` runs frontend trip-validation tests plus the existing backend checks.

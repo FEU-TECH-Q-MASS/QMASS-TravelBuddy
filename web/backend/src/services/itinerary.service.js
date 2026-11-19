@@ -1,6 +1,6 @@
 const crypto = require("node:crypto");
 
-const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
 function extractJson(text) {
   const cleaned = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
@@ -24,8 +24,8 @@ function validateItinerary(value, trip) {
 async function generateItinerary(trip) {
   if (!process.env.GEMINI_API_KEY) return { itinerary: trip.itinerary, provider: "demo-fallback", model: null, generatedAt: new Date().toISOString() };
   const prompt = `Create a practical daily travel itinerary as JSON for this trip. Return ONLY a JSON array, with no markdown. Each item must have date and activities. Each activity must have time, title, durationMinutes, cost in ${trip.currency}, travelMinutesFromPrevious, and distanceKmFromPrevious. Do not invent bookings or claim live availability. Keep costs realistic estimates and fit the total budget. Trip: ${JSON.stringify({ destination: trip.destination, departure: trip.departure, returnDate: trip.returnDate, travelers: trip.travelers, budget: trip.budget, currency: trip.currency, interests: trip.interests || [] })}`;
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, responseMimeType: "application/json" } }), signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`Gemini request failed with status ${response.status}.`);
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, responseMimeType: "application/json" } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const details = await response.text(); throw new Error(`Gemini request failed with status ${response.status}: ${details.slice(0, 240)}`); }
   const payload = await response.json();
   const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("");
   return { itinerary: validateItinerary(extractJson(text), trip), provider: "google-gemini", model, generatedAt: new Date().toISOString() };

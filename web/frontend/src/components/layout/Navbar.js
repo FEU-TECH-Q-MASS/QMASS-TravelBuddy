@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import Icon from "@/components/Icon";
+import { api, clearToken, getToken } from "@/lib/api";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
@@ -13,8 +14,11 @@ const publicLinks = [
 ];
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const toggle = useRef(null);
+  useEffect(() => { const timer = setTimeout(() => { if (getToken()) api("/auth/me").then(({ user: value }) => setUser(value)).catch(() => { clearToken(); setUser(null); }); }, 0); return () => clearTimeout(timer); }, [pathname]);
   const isActive = (href) =>
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   function closeMenu() {
@@ -26,6 +30,8 @@ export default function Navbar() {
       toggle.current?.focus();
     }
   }
+  function logout() { api("/auth/logout", { method: "POST" }).catch(() => undefined).finally(() => { clearToken(); setUser(null); router.push("/"); }); }
+  const accountAction = user ? <><Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link><button type="button" onClick={logout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button></> : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
   return (
     <header className="site-header" onKeyDown={onKeyDown}>
       <a className="skip-link" href="#main-content">
@@ -48,9 +54,7 @@ export default function Navbar() {
             </Link>
           ))}
         </nav>
-        <Link href="/login" className="btn btn-primary hidden lg:inline-flex">
-          Log In <Icon size={17} />
-        </Link>
+        <div className="flex items-center gap-3">{accountAction}</div>
         <button
           type="button"
           ref={toggle}
@@ -80,13 +84,7 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
-          <Link
-            href="/login"
-            onClick={closeMenu}
-            className="btn btn-primary mt-3 w-full"
-          >
-            Log In <Icon size={17} />
-          </Link>
+          {user ? <><Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link><button type="button" onClick={() => { closeMenu(); logout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button></> : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
         </nav>
       )}
     </header>
