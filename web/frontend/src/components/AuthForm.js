@@ -55,7 +55,7 @@ export default function AuthForm({ mode }) {
     const request = recovery
       ? api("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: values.email }) })
       : api(`/auth/${signup ? "register" : "login"}`, { method: "POST", body: JSON.stringify(signup ? { name: `${values.firstName} ${values.lastName}`, email: values.email, password: values.password } : { email: values.email, password: values.password }) });
-    request.then((result) => { if (result?.token) { saveToken(result.token); router.push("/dashboard"); } else setNotice(result.message || "Request completed."); }).catch((error) => setNotice(error.message));
+    request.then((result) => { if (result?.token) { saveToken(result.token); router.push("/dashboard"); } else if (result?.resetToken) router.push(`/reset-password?token=${encodeURIComponent(result.resetToken)}`); else setNotice(result.message || "Request completed."); }).catch((error) => setNotice(error.message));
     if (!recovery) {
       form.elements.namedItem("password").value = "";
       setPassword("");

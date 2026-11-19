@@ -4,16 +4,18 @@ const users = new Map();
 const sessions = new Map();
 const trips = new Map();
 const notifications = new Map();
+const resetTokens = new Map();
+const priceTrackers = new Map();
 
 function id(prefix) { return `${prefix}_${crypto.randomUUID()}`; }
 function seed() {
   if (users.size) return;
-  const user = { id: "user_demo", name: "Demo Traveler", email: "demo@travelbuddy.test", password: "demo1234", role: "admin", active: true, preferences: { currency: "PHP", interests: ["Nature", "Food"] }, createdAt: new Date().toISOString() };
+  const user = { id: "user_demo", name: "Demo Traveler", email: "demo@travelbuddy.test", passwordHash: crypto.scryptSync("demo1234", "travelbuddy-demo-salt", 64).toString("hex"), role: "admin", active: true, preferences: { currency: "PHP", interests: ["Nature", "Food"] }, createdAt: new Date().toISOString() };
   users.set(user.id, user);
 }
 seed();
 
-function publicUser(user) { const safe = { ...user }; delete safe.password; return safe; }
+function publicUser(user) { const safe = { ...user }; delete safe.password; delete safe.passwordHash; return safe; }
 function makeItinerary(input) {
   const start = new Date(`${input.departure}T00:00:00Z`);
   const end = new Date(`${input.returnDate}T00:00:00Z`);
@@ -42,4 +44,16 @@ function enrichTrip(input, ownerId) {
   return trip;
 }
 
-module.exports = { users, sessions, trips, notifications, id, publicUser, enrichTrip };
+function applyItinerary(trip, itinerary, generation) {
+  const activities = itinerary.reduce((sum, day) => sum + day.activities.reduce((daySum, activity) => daySum + activity.cost, 0), 0);
+  trip.itinerary = itinerary;
+  trip.generation = generation;
+  trip.budgetBreakdown.activities = activities;
+  trip.budgetBreakdown.estimatedTotal = trip.budgetBreakdown.flights + trip.budgetBreakdown.accommodation + activities + trip.budgetBreakdown.meals + trip.budgetBreakdown.transportation;
+  trip.budgetBreakdown.remaining = trip.budget - trip.budgetBreakdown.estimatedTotal;
+  trip.routes = itinerary.map((day) => ({ day: day.day, totalDistanceKm: day.activities.reduce((sum, activity) => sum + activity.distanceKmFromPrevious, 0), estimatedTravelMinutes: day.activities.reduce((sum, activity) => sum + activity.travelMinutesFromPrevious, 0), stops: day.activities.map((activity, index) => ({ title: activity.title, lat: 14.5995 + day.day / 100 + index / 1000, lng: 120.9842 + day.day / 100 + index / 1000 })) }));
+  trip.updatedAt = new Date().toISOString();
+  return trip;
+}
+
+module.exports = { users, sessions, trips, notifications, resetTokens, priceTrackers, id, publicUser, enrichTrip, applyItinerary };
