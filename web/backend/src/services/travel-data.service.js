@@ -1,6 +1,8 @@
+const {   //Get travelConditions in the aggregated js file
+  getTravelConditions,
+} = require("./travelConditionsService");
+
 const amadeusBase = (process.env.AMADEUS_BASE_URL || "https://test.api.amadeus.com").replace(/\/$/, "");
-const weatherKey = process.env.OPENWEATHER_API_KEY;
-const holidayBase = (process.env.NAGER_DATE_BASE_URL || "https://date.nager.at/api/v3").replace(/\/$/, "");
 let amadeusToken;
 
 async function jsonRequest(url, options = {}) {
@@ -27,11 +29,28 @@ async function searchHotels(trip) {
   const result = await amadeus("/v3/shopping/hotel-offers", { cityCode: trip.destination, checkInDate: trip.departure, checkOutDate: trip.returnDate, adults: trip.travelers, roomQuantity: 1, currency: trip.currency });
   return { provider: "amadeus", offers: (result.data || []).slice(0, 5).map((item) => { const offer = item.offers?.[0]; return { id: offer?.id || item.hotel?.hotelId, name: item.hotel?.name, location: item.hotel?.address?.lines?.join(", ") || trip.destination, guests: trip.travelers, nightlyRate: Number(offer?.price?.variations?.average?.base || offer?.price?.base || 0), totalStay: Number(offer?.price?.total || 0), currency: offer?.price?.currency || trip.currency, availability: "Available from provider", taxesAndFees: offer?.price?.taxes?.map((tax) => tax.description).join(", ") || "See provider rate rules", quotedAt: new Date().toISOString(), details: offer }; }) };
 }
-async function getConditions(trip) {
-  const year = new Date(trip.departure).getUTCFullYear();
-  const conditions = { weather: "Weather unavailable for this destination.", holidays: "Public holiday data unavailable.", seasonalContext: "Seasonal context is an estimate.", sourceTimestamp: new Date().toISOString(), forecastAvailable: false, providers: [] };
-  if (weatherKey && trip.latitude && trip.longitude) { const weather = await jsonRequest(`https://api.openweathermap.org/data/2.5/forecast?lat=${trip.latitude}&lon=${trip.longitude}&appid=${weatherKey}&units=metric`); conditions.weather = weather.list?.slice(0, 3).map((item) => `${item.dt_txt}: ${item.weather?.[0]?.description}, ${item.main?.temp}°C`).join("; ") || conditions.weather; conditions.forecastAvailable = true; conditions.providers.push("OpenWeather"); }
-  const holidays = await jsonRequest(`${holidayBase}/PublicHolidays/${year}/${trip.countryCode || "PH"}`).catch(() => []); const relevant = holidays.filter((item) => item.date >= trip.departure && item.date <= trip.returnDate); if (relevant.length) conditions.holidays = relevant.map((item) => `${item.date}: ${item.localName}`).join("; "); conditions.providers.push("Nager.Date"); return conditions;
+
+//Travel Data API call
+
+async function refreshTravelData(trip) {
+  const [flights, hotels, conditions] = await Promise.all([
+    searchFlights(trip),
+    searchHotels(trip),
+    getTravelConditions(trip),
+  ]);
+
+  return {
+    offers: {
+      flights: flights.offers,
+      hotels: hotels.offers,
+    },
+    conditions,
+    providers: {
+      flights: flights.provider,
+      hotels: hotels.provider,
+    },
+  };
 }
-async function refreshTravelData(trip) { const [flights, hotels, conditions] = await Promise.all([searchFlights(trip), searchHotels(trip), getConditions(trip)]); return { offers: { flights: flights.offers, hotels: hotels.offers }, conditions, providers: { flights: flights.provider, hotels: hotels.provider } }; }
+
 module.exports = { refreshTravelData };
+
