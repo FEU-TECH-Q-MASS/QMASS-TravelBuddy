@@ -13,7 +13,6 @@ router.get("/", (req, res, next) => {
 }, async (req, res, next) => {
   try { res.json({ trips: await listTrips(req.user.id) }); } catch (error) { next(error); }
 });
-
 router.use(requireAuth);
 
 router.post("/", async (req, res, next) => {

@@ -18,11 +18,9 @@ as an external integration called by the Node.js backend.
 - Frontend tests for trip validation and calendar day/night calculations.
 - Backend tests for configuration, health contract, and HTTP error handling.
 
-Supabase PostgreSQL/Auth, Gemini, Amadeus, Google Maps, OpenWeather, and Nager.Date
-are planned integrations. No account, saved-trip, import, caching, background-job,
-or itinerary-generation backend implementation exists in this scaffold. Account
-forms explicitly state that authentication is unavailable; valid submissions do
-not call a provider or persist credentials. Contact previews do not deliver messages.
+Supabase Auth is used by the account screens and bearer-token middleware; the
+profiles trigger supplies role and active-status data. Trip persistence, provider
+data, caching, background jobs, and itinerary generation remain local or planned.
 
 ## Request flow
 
@@ -30,7 +28,7 @@ not call a provider or persist credentials. Contact previews do not deliver mess
 Browser -> Next.js (localhost:3000)
              /api/* -> Express (localhost:5000)
                           -> services -> provider adapters (planned)
-                          -> models -> Supabase PostgreSQL/Auth (planned)
+                          -> models -> Supabase PostgreSQL/Auth
 ```
 
 The Next.js rewrite preserves the path, including `/api/v1`. Browser API requests
