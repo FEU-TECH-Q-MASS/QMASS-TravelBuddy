@@ -184,6 +184,7 @@ in `src/components/layout`.
 | `NODE_ENV` | Backend environment | `development`, `test`, or `production` |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Backend `.env` | Server-side token verification and profile authorization |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Frontend `.env.local` | Browser Supabase Auth client |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Frontend `.env.local` | Browser key for the Maps Embed API. Without it, the itinerary shows its stops and a Google Maps link. |
 
 For local development, Next.js forwards `/api/*` to Express, preserving `/api/v1`.
 If the local backend port changes, update `BACKEND_URL` too. Browser code should
@@ -214,7 +215,7 @@ Add values for Preview as well if you plan to test a preview deployment.
 | `GOOGLE_MAPS_SERVER_API_KEY` | Server-side key restricted to Routes API; never expose as `NEXT_PUBLIC_*` |
 | `GEMINI_API_KEY` | Optional Secret for AI-generated itineraries and travel suggestions |
 | `OPENWEATHER_API_KEY` | Optional Secret for live weather |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser key for live route maps |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser key restricted to the Maps Embed API and the frontend domain |
 
 Open `/` and `/api/v1/health` on the deployed domain to verify both services.
 Set the Supabase Auth Site URL to the production domain and allow its

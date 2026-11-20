@@ -237,7 +237,51 @@ function Itinerary({ trip }) {
 
 function OfferList({ title, items, render }) { return <div><p className="eyebrow">Travel options</p><h2 className="text-3xl font-semibold text-brand-900">{title}</h2>{items.length ? <div className="mt-6 grid gap-4">{items.map((item) => <article key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6">{render(item)}{item.googleMapsUri && <a href={item.googleMapsUri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm font-semibold text-brand-700 underline">View on Google Maps ↗</a>}</article>)}</div> : <div className="notice mt-6">No live {title.toLowerCase()} are available yet. Configure a live provider and select “Refresh travel data” to retrieve current results.</div>}</div>; }
 function Budget({ trip }) { const entries = Object.entries(trip.budgetBreakdown).filter(([key]) => !["currency", "remaining", "estimatedTotal"].includes(key)); const remaining = Number(trip.budgetBreakdown.remaining || 0); const overBudget = remaining < 0; return <div><p className="eyebrow">Budget overview</p><h2 className="text-3xl font-semibold text-brand-900">Where your budget goes.</h2><div className="mt-6 grid gap-4 sm:grid-cols-2">{entries.map(([key, value]) => <div key={key} className="rounded-2xl border border-slate-200 p-5"><p className="text-sm capitalize text-slate-500">{key.replace(/([A-Z])/g, " $1")}</p><p className="mt-2 text-2xl font-semibold text-brand-900">{money(trip, value)}</p></div>)}</div><div className={`mt-5 rounded-2xl p-5 ${overBudget ? "border border-red-200 bg-red-50 text-red-900" : "bg-brand-50 text-brand-900"}`}><p className="text-sm font-semibold">{overBudget ? "Can't afford this plan" : "Estimated budget remaining"}</p><p className="mt-1 text-2xl font-semibold">{overBudget ? `${money(trip, Math.abs(remaining))} over budget` : money(trip, remaining)}</p><p className="mt-2 text-sm">{overBudget ? "Increase your budget or reduce activities, flights, or accommodation." : "This estimate stays within your planned budget."}</p></div></div>; }
-function Routes({ trip }) { const [selectedDay, setSelectedDay] = useState(trip.routes[0]?.day || 1); const route = trip.routes.find((item) => item.day === selectedDay) || trip.routes[0]; const day = trip.itinerary.find((item) => item.day === selectedDay); const places = day?.activities.map((activity) => activity.location || activity.title) || []; const destinations = uniqueTravelLocations(places.length ? places : route.stops.map((stop) => stop.location || stop.title)); const origin = destinations[0] || resolveTravelLocation(trip.destination); const destination = destinations.at(-1) || resolveTravelLocation(trip.destination); const waypoints = destinations.slice(1, -1).join("|"); const mapsUrl = destinations.length === 1 ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}` : `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`; return <div><p className="eyebrow">Maps and transportation</p><h2 className="text-3xl font-semibold text-brand-900">Follow your local route in Google Maps.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Select a day to view locations from that day’s itinerary. Airport transfers are not shown as local driving routes.</p><div className="mt-6 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">{trip.routes.map((item) => <button key={item.day} onClick={() => setSelectedDay(item.day)} className={`shrink-0 rounded-xl px-4 py-3 text-left ${item.day === selectedDay ? "bg-brand-900 text-white" : "bg-slate-50 text-slate-600"}`}><span className="block text-xs font-bold">DAY {item.day}</span><span className="mt-1 block text-xs">{item.totalDistanceKm.toFixed(1)} km estimated</span></button>)}</div><div className="mt-6"><RouteMap route={route} places={places} origin={destinations.length > 1 ? origin : undefined} destination={destinations.length > 1 ? destination : undefined} /></div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5"><div><p className="font-semibold text-brand-900">Day {route.day}</p><p className="mt-1 text-sm text-slate-500">{route.totalDistanceKm.toFixed(1)} km · {route.estimatedTravelMinutes} minutes estimated travel</p></div><a href={mapsUrl} target="_blank" rel="noreferrer" className="btn btn-primary">Open in Google Maps ↗</a></div></div>; }
+function Routes({ trip }) {
+  const routes = (trip.routes || []).map((route) => {
+    const day = trip.itinerary.find((item) => item.day === route.day);
+    const activities = day?.activities.map((activity) => activity.location || activity.title).filter(Boolean);
+    const stops = route.stops?.map((stop) => stop.location || stop.title).filter(Boolean);
+    const locations = uniqueTravelLocations(activities?.length ? activities : stops?.length ? stops : [trip.destination]);
+    return { ...route, locations };
+  });
+  const [selectedDay, setSelectedDay] = useState(routes[0]?.day);
+  if (!routes.length) return <p className="notice">There are no daily routes for this trip yet.</p>;
+
+  const mapRoutes = new Set(routes.map(({ locations }) => JSON.stringify(locations.map((location) => location.toLowerCase()))));
+  const showDaySelector = mapRoutes.size > 1;
+  const sharedRoute = routes.length > 1 && !showDaySelector;
+  const route = (showDaySelector && routes.find(({ day }) => day === selectedDay)) || routes[0];
+
+  return (
+    <div>
+      <p className="eyebrow">Maps and transportation</p>
+      <h2 className="text-3xl font-semibold text-brand-900">Follow your local route in Google Maps.</h2>
+      {showDaySelector && (
+        <>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Select a day to see its itinerary stops and open local directions.</p>
+          <div className="mt-6 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">
+            {routes.map((item) => (
+              <button key={item.day} type="button" onClick={() => setSelectedDay(item.day)} aria-pressed={route.day === item.day}
+                className={`shrink-0 rounded-xl px-4 py-3 text-left ${route.day === item.day ? "bg-brand-900 text-white" : "bg-slate-50 text-slate-600"}`}>
+                <span className="block text-xs font-bold">DAY {item.day}</span>
+                <span className="mt-1 block text-xs">{item.totalDistanceKm.toFixed(1)} km estimated</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {sharedRoute && <p className="mt-3 text-sm text-slate-500">The same route applies to all {routes.length} days.</p>}
+      <div className="mt-6"><RouteMap locations={route.locations} /></div>
+      {showDaySelector && (
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="font-semibold text-brand-900">Day {route.day}</p>
+          <p className="mt-1 text-sm text-slate-500">{route.totalDistanceKm.toFixed(1)} km · {route.estimatedTravelMinutes} minutes estimated travel</p>
+        </div>
+      )}
+    </div>
+  );
+}
 function weatherDetails(value) {
   if (typeof value === "string") return { status: "Planning note", text: value };
   if (!value?.days?.length) return { status: "Not available", text: "Forecast coverage is not available for these travel dates yet." };
