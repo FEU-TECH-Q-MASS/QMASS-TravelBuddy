@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import AdminDashboard from "@/components/admin/AdminDashboard";
@@ -18,6 +18,7 @@ const destinationImages = {
   TAC: "tacloban.jpg", LAO: "laoag.jpg", PAL: "palawan.jpg",
   BOH: "bohol.jpg", BOR: "boracay-shangri-la.jpg", BAN: "banaue.jpg",
 };
+const TRIPS_PER_PAGE = 6;
 
 function formatDate(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
@@ -54,6 +55,23 @@ function TravelerDashboard({ user, onLogout }) {
   const [editingId, setEditingId] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const tripsHeading = useRef(null);
+  const totalPages = Math.max(1, Math.ceil(trips.length / TRIPS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * TRIPS_PER_PAGE;
+  const visibleTrips = trips.slice(startIndex, startIndex + TRIPS_PER_PAGE);
+  const firstPageButton = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const pageButtons = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPageButton + index);
+  const paginationDisabled = Boolean(editingId || deletingId);
+
+  function changePage(nextPage) {
+    if (paginationDisabled || nextPage === currentPage) return;
+    setPage(Math.max(1, Math.min(nextPage, totalPages)));
+    setSuccess("");
+    tripsHeading.current?.focus({ preventScroll: true });
+    tripsHeading.current?.scrollIntoView({ block: "start" });
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,6 +96,7 @@ function TravelerDashboard({ user, onLogout }) {
     try {
       await api(`/trips/${trip.id}`, { method: "DELETE" });
       setTrips((current) => current.filter((item) => item.id !== trip.id));
+      setPage((current) => Math.min(current, Math.max(1, Math.ceil((trips.length - 1) / TRIPS_PER_PAGE))));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -104,7 +123,7 @@ function TravelerDashboard({ user, onLogout }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3">
-              <h2 id="my-trips-title" className="text-2xl font-semibold tracking-tight text-brand-900">My trips</h2>
+              <h2 ref={tripsHeading} id="my-trips-title" tabIndex={-1} className="scroll-mt-28 text-2xl font-semibold tracking-tight text-brand-900">My trips</h2>
               {!loading && <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500">{trips.length} saved</span>}
             </div>
             <p className="mt-2 text-sm text-slate-500">Good things ahead. Pick up where you left off.</p>
@@ -135,8 +154,9 @@ function TravelerDashboard({ user, onLogout }) {
             <Link href={newTripPath} className="btn btn-dark mt-6">Plan your first trip <Icon name="arrow" size={16} /></Link>
           </div>
         ) : (
+          <>
           <div className="mt-6 grid items-start gap-5 md:grid-cols-2">
-            {trips.map((trip) => (
+            {visibleTrips.map((trip) => (
               <article key={trip.id} className={`group min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md ${editingId === trip.id ? "border-brand-700 ring-2 ring-brand-700/10" : "border-slate-200"}`}>
                 <Link href={`/trips/${trip.id}`} className="relative block h-48 overflow-hidden bg-brand-900">
                   <Image src={`/images/${destinationImages[String(trip.destination).toUpperCase()] || "philippines.jpg"}`} alt="" fill sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 420px" className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" />
@@ -171,6 +191,21 @@ function TravelerDashboard({ user, onLogout }) {
               </article>
             ))}
           </div>
+          {totalPages > 1 && (
+            <nav aria-label="My trips pagination" className="mt-7 flex flex-col items-center gap-3 border-t border-slate-200 pt-5">
+              <p role="status" className="text-xs text-slate-500">Showing {startIndex + 1}–{Math.min(startIndex + TRIPS_PER_PAGE, trips.length)} of {trips.length} trips <span className="sr-only">· Page {currentPage} of {totalPages}</span></p>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1 || paginationDisabled} className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-brand-900 transition-colors hover:border-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="chevron" size={14} className="rotate-180" /> Previous</button>
+                {firstPageButton > 1 && <span aria-hidden="true" className="px-1 text-xs text-slate-400">…</span>}
+                {pageButtons.map((value) => (
+                  <button key={value} type="button" onClick={() => changePage(value)} aria-label={`Page ${value}`} aria-current={value === currentPage ? "page" : undefined} disabled={paginationDisabled} className={`inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${value === currentPage ? "border-brand-900 bg-brand-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-brand-700 hover:bg-brand-50"}`}>{value}</button>
+                ))}
+                {pageButtons.at(-1) < totalPages && <span aria-hidden="true" className="px-1 text-xs text-slate-400">…</span>}
+                <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage === totalPages || paginationDisabled} className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-brand-900 transition-colors hover:border-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40">Next <Icon name="chevron" size={14} /></button>
+              </div>
+            </nav>
+          )}
+          </>
         )}
       </section>
 
