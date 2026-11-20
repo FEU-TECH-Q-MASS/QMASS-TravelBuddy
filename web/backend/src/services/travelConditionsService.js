@@ -4,6 +4,10 @@ const {
 } = require("./providers/openWeatherProvider");
 
 const {
+  getActivityWarnings,
+} = require("./conditionWarningsService");
+
+const {
   getPublicHolidays,
 } = require("./providers/nagerDateProvider");
 
@@ -186,6 +190,21 @@ async function getTravelConditions(trip) {
       sourceType: "availability",
     });
   }
+
+
+  // ACTIVITY-SPECIFIC WEATHER WARNINGS
+  if (
+    conditions.weather.status === "available" &&
+    Array.isArray(trip.itinerary)
+  ) {
+    const activityWarnings = getActivityWarnings(
+      trip.itinerary,
+      conditions.weather
+    );
+
+    conditions.warnings.push(...activityWarnings);
+  }
+
 
   return conditions;
 }
