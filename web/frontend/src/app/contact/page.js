@@ -30,8 +30,8 @@ export default function ContactPage() {
             goes a long way.
           </h2>
           <p className="mt-5 max-w-sm text-sm leading-7 text-slate-500">
-            TravelBuddy is an academic project by the Q-MASS team. Public
-            contact channels will be added when they are available.
+            TravelBuddy is an academic project by the Q-MASS team. Use the
+            contact form to reach the team.
           </p>
           <div className="mt-8 rounded-xl bg-[#faf9f6] p-6">
             <h3 className="text-sm font-semibold">

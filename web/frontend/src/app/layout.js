@@ -1,6 +1,5 @@
 import "./globals.css";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import AppShell from "@/components/layout/AppShell";
 
 export const metadata = {
   title: { default: "TravelBuddy", template: "%s | TravelBuddy" },
@@ -15,11 +14,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body className="min-h-screen bg-white text-slate-900 antialiased">
-        <Navbar />
-        <main id="main-content" tabIndex={-1}>
-          {children}
-        </main>
-        <Footer />
+        <AppShell copyrightYear={new Date().getFullYear()}>{children}</AppShell>
       </body>
     </html>
   );

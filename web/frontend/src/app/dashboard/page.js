@@ -2,38 +2,52 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, clearToken, getToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 import Icon from "@/components/Icon";
+import { useSiteAuth } from "@/components/layout/AppShell";
 import TripEditForm from "@/components/TripEditForm";
 import { resolveTravelLocation } from "@/lib/travelOptions";
 
 export default function DashboardPage() {
+  const { user, loading, profile, profileLoading, profileError, signingOut, signOut } = useSiteAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user && !signingOut.current) router.replace("/login");
+  }, [loading, user, router, signingOut]);
+
+  if (loading || profileLoading || (user && !profile)) {
+    return (
+      <section className="page-width section-space">
+        <p className="notice" role={profileError ? "alert" : "status"}>
+          {profileLoading ? "Loading dashboard…" : profileError || "Loading dashboard…"}
+        </p>
+      </section>
+    );
+  }
+  if (!user) return null;
+  if (profile.role === "admin") {
+    return <AdminDashboard key={user.id} name={profile.display_name} />;
+  }
+  return <TravelerDashboard key={user.id} user={profile} onLogout={signOut} />;
+}
+
+function TravelerDashboard({ user, onLogout }) {
   const [trips, setTrips] = useState([]);
-  const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [success, setSuccess] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
-    if (!getToken()) {
-      router.push("/login");
-      return;
-    }
-    api("/me")
-      .then(({ user }) => setUser(user))
-      .catch((e) => setError(e.message));
-    api("/trips")
-      .then(({ trips }) => setTrips(trips))
-      .catch((e) => setError(e.message));
-  }, [router]);
-
-  function logout() {
-    clearToken();
-    router.push("/");
-  }
+    const controller = new AbortController();
+    api("/trips", { signal: controller.signal })
+      .then(({ trips }) => { if (!controller.signal.aborted) setTrips(trips); })
+      .catch((error) => { if (!controller.signal.aborted) setError(error.message); });
+    return () => controller.abort();
+  }, []);
 
   async function deleteTrip(trip) {
     if (!window.confirm(`Permanently delete your trip to ${trip.destination}?`)) return;
@@ -55,12 +69,12 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="eyebrow">Your travel desk</p>
-          <h1 className="page-title">Welcome{user ? `, ${user.display_name}` : " back"}.</h1>
+          <h1 className="page-title">Welcome, {user.display_name}.</h1>
           <p className="mt-4 text-slate-500">Create, reopen, and refine your saved journeys.</p>
         </div>
         <div className="flex gap-3">
           <Link href="/#plan-trip" className="btn btn-primary">Plan a trip</Link>
-          <button onClick={logout} className="btn btn-outline">Log out</button>
+          <button type="button" onClick={onLogout} className="btn btn-outline">Log out</button>
         </div>
       </div>
 
@@ -78,13 +92,6 @@ export default function DashboardPage() {
           <h2 className="mt-2 text-xl font-semibold">Notifications</h2>
           <p className="mt-2 text-sm text-slate-500">Review travel updates and alerts.</p>
         </Link>
-        {user?.role === "admin" && (
-          <Link href="/admin/users" className="rounded-2xl border p-6 hover:border-brand-700">
-            <p className="text-xs font-semibold text-brand-700">ADMIN</p>
-            <h2 className="mt-2 text-xl font-semibold">Manage users</h2>
-            <p className="mt-2 text-sm text-slate-500">Roles and account access.</p>
-          </Link>
-        )}
       </div>
 
       <div className="mt-14">

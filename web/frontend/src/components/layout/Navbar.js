@@ -1,10 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import Logo from "./Logo";
 import Icon from "@/components/Icon";
-import { useAuth } from "@/hooks/useAuth";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
@@ -12,12 +11,18 @@ const publicLinks = [
   ["/about", "About"],
   ["/contact", "Contact"],
 ];
-export default function Navbar() {
+const adminLinks = [
+  ["/dashboard", "Admin dashboard"],
+  ["/admin/users", "Manage users"],
+  ["/admin/support-messages", "Support messages"],
+  ["/account", "My account"],
+];
+
+export default function Navbar({ user, isAdmin, onLogout }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuth();
   const toggle = useRef(null);
+  const links = isAdmin ? adminLinks : publicLinks;
   const isActive = (href) =>
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   function closeMenu() {
@@ -29,8 +34,7 @@ export default function Navbar() {
       toggle.current?.focus();
     }
   }
-  async function handleLogout() { await logout(); router.push("/"); }
-  const accountAction = user ? <><Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link><button type="button" onClick={handleLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button></> : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
+  const accountAction = user ? <>{!isAdmin && <Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link>}<button type="button" onClick={onLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button></> : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
   return (
     <header className="site-header" onKeyDown={onKeyDown}>
       <a className="skip-link" href="#main-content">
@@ -42,7 +46,7 @@ export default function Navbar() {
           aria-label="Main navigation"
           className="hidden items-center gap-7 lg:flex"
         >
-          {publicLinks.map(([href, label]) => (
+          {links.map(([href, label]) => (
             <Link
               key={href}
               href={href}
@@ -72,7 +76,7 @@ export default function Navbar() {
           aria-label="Mobile navigation"
           className="page-width border-t border-slate-100 py-5 lg:hidden"
         >
-          {publicLinks.map(([href, label]) => (
+          {links.map(([href, label]) => (
             <Link
               key={href}
               href={href}
@@ -83,7 +87,7 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
-          {user ? <><Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link><button type="button" onClick={() => { closeMenu(); handleLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button></> : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
+          {user ? <>{!isAdmin && <Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link>}<button type="button" onClick={() => { closeMenu(); onLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button></> : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
         </nav>
       )}
     </header>

@@ -147,7 +147,8 @@ No provider keys are required to view or interact with the public website.
 | `/explore/palawan` | Destination preview (also `bohol`, `cebu`, `boracay`, `banaue`) |
 | `/how-it-works` | Planning steps, planned data inputs, sample itinerary, FAQ |
 | `/about` | Project context, principles, and Q-MASS team |
-| `/contact` | Contact information and local message-review form |
+| `/contact` | Validated contact form that sends messages to the admin inbox |
+| `/admin/support-messages` | Admin inbox with filters, resolution, archiving, and restore |
 | `/login` | Login interface with an inline Sign Up link |
 | `/signup` | Signup interface with validation and password guidance |
 | `/forgot-password` | Password-recovery interface preview |

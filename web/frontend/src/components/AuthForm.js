@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
+import { apiFetch } from "@/lib/apiFetch";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 const passwordRules = [
@@ -77,7 +78,8 @@ export default function AuthForm({ mode }) {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: values.email, password: values.password });
         if (error) throw error;
-        router.push("/");
+        const profile = await apiFetch("/me", { cache: "no-store" }).catch(() => null);
+        router.replace(profile?.user?.role === "traveler" ? "/" : "/dashboard");
       }
     } catch (error) {
       setNotice(recovery ? "If an account exists for that email, a reset link has been sent." : signup ? error.message || "Unable to create your account." : "Invalid email or password");
