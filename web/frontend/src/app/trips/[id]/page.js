@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import ConditionWarning from "@/components/ConditionWarning";
 import { resolveTravelLocation } from "@/lib/travelOptions";
 import RouteMap from "@/components/RouteMap";
 const tabs = ["itinerary", "flights", "hotels", "budget", "routes", "conditions"];
@@ -13,7 +14,155 @@ export default function TripWorkspace({ params }) {
   return <section className="page-width section-space"><div className="rounded-3xl bg-brand-900 p-7 text-white sm:p-10"><div className="flex flex-wrap items-start justify-between gap-6"><div><p className="text-xs font-bold tracking-[0.2em] text-cyan-200 uppercase">Trip workspace</p><h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">{trip.destination}</h1><p className="mt-4 text-sm text-white/75">{trip.origin} → {trip.destination} · {trip.departure} to {trip.returnDate}</p></div><span className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span></div><div className="mt-8 grid gap-3 sm:grid-cols-3"><Summary label="Travelers" value={trip.travelers} detail="in your group" /><Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" /><Summary label="Estimate" value={money(trip, trip.budgetBreakdown.estimatedTotal)} detail={trip.budgetBreakdown.remaining < 0 ? "over budget" : "within budget"} /></div></div><div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{tabs.map((value) => <button key={value} onClick={() => setTab(value)} className="filter-pill" aria-pressed={tab === value}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div><div className="flex gap-2"><button className="btn btn-outline" onClick={refreshData} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh travel data"}</button></div></div>{error && <p className="notice mt-5">{error}</p>}<div className="mt-8">{tab === "itinerary" && <Itinerary trip={trip} />}{tab === "flights" && <OfferList title="Flight options" items={trip.offers.flights} render={(item) => <><h3 className="text-lg font-semibold">{item.route}</h3><p className="mt-2 text-sm text-slate-500">{item.airline} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.fare)}</strong><span className="text-sm text-slate-500">{item.baggage}</span></div></>} />}{tab === "hotels" && <OfferList title="Hotel options" items={trip.offers.hotels} render={(item) => <><h3 className="text-lg font-semibold">{item.name}</h3><p className="mt-2 text-sm text-slate-500">{item.location} · capacity {item.guests} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.totalStay)} total</strong><span className="text-sm text-slate-500">{money(trip, item.nightlyRate)} per night</span></div></>} />}{tab === "budget" && <Budget trip={trip} />}{tab === "routes" && <Routes trip={trip} />}{tab === "conditions" && <Conditions trip={trip} />}</div></section>;
 }
 function Summary({ label, value, detail }) { return <div className="rounded-2xl bg-white/10 p-4"><p className="text-xs text-white/60">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-white/60">{detail}</p></div>; }
-function Itinerary({ trip }) { const [selectedDay, setSelectedDay] = useState(trip.itinerary[0]?.day || 1); const day = trip.itinerary.find((item) => item.day === selectedDay) || trip.itinerary[0]; return <div><div className="mb-7"><p className="eyebrow">Your daily plan</p><h2 className="text-3xl font-semibold text-brand-900">A trip with room to breathe.</h2><div className="mt-5 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">{trip.itinerary.map((item) => <button key={item.day} onClick={() => setSelectedDay(item.day)} className={`shrink-0 rounded-xl px-4 py-3 text-left ${item.day === selectedDay ? "bg-brand-900 text-white" : "bg-slate-50 text-slate-600"}`}><span className="block text-xs font-bold">DAY {item.day}</span><span className="mt-1 block text-xs">{new Date(`${item.date}T00:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</span></button>)}</div></div><article className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b bg-slate-50 px-6 py-5"><div><p className="text-xs font-bold tracking-wider text-brand-700 uppercase">Day {day.day}</p><h3 className="mt-1 text-xl font-semibold text-brand-900">{new Date(`${day.date}T00:00:00`).toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric" })}</h3></div><span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">{day.activities.length} stops</span></div><div className="p-6">{day.activities.map((activity, index) => <div key={activity.id} className="relative flex gap-4 pb-7 last:pb-0"><div className="flex w-10 shrink-0 flex-col items-center"><span className="z-10 flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">{index + 1}</span>{index < day.activities.length - 1 && <span className="absolute top-9 bottom-0 w-px bg-cyan-100" />}</div><div className="min-w-0 flex-1 rounded-2xl border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-brand-700">{activity.time}</p><h4 className="mt-1 text-base font-semibold text-brand-900">{activity.title}</h4></div><strong className="text-sm text-brand-700">{money(trip, activity.cost)}</strong></div><div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500"><span>{activity.durationMinutes} minutes</span>{activity.travelMinutesFromPrevious > 0 && <span>Next stop: {activity.travelMinutesFromPrevious} min · {Number(activity.distanceKmFromPrevious).toFixed(1)} km</span>}</div></div></div>)}</div></article></div>; }
+
+//Iteninerary block
+function Itinerary({ trip }) {
+  const [selectedDay, setSelectedDay] = useState(
+    trip.itinerary[0]?.day || 1
+  );
+
+  const day =
+    trip.itinerary.find((item) => item.day === selectedDay) ||
+    trip.itinerary[0];
+
+  return (
+    <div>
+      {/* DAY SELECTION */}
+      <div className="mb-7">
+        <p className="eyebrow">Your daily plan</p>
+
+        <h2 className="text-3xl font-semibold text-brand-900">
+          A trip with room to breathe.
+        </h2>
+
+        <div className="mt-5 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">
+          {trip.itinerary.map((item) => (
+            <button
+              key={item.day}
+              onClick={() => setSelectedDay(item.day)}
+              className={`shrink-0 rounded-xl px-4 py-3 text-left ${
+                item.day === selectedDay
+                  ? "bg-brand-900 text-white"
+                  : "bg-slate-50 text-slate-600"
+              }`}
+            >
+              <span className="block text-xs font-bold">
+                DAY {item.day}
+              </span>
+
+              <span className="mt-1 block text-xs">
+                {new Date(
+                  `${item.date}T00:00:00`
+                ).toLocaleDateString("en-PH", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* DAILY ITINERARY */}
+      <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-5">
+          <div>
+            <p className="text-xs font-bold tracking-wider text-brand-700 uppercase">
+              Day {day.day}
+            </p>
+
+            <h3 className="mt-1 text-xl font-semibold text-brand-900">
+              {new Date(
+                `${day.date}T00:00:00`
+              ).toLocaleDateString("en-PH", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </h3>
+          </div>
+
+          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            {day.activities.length} stops
+          </span>
+        </div>
+
+        {/* ACTIVITIES */}
+        <div className="p-6">
+          {day.activities.map((activity, index) => (
+            <div
+              key={activity.id}
+              className="relative flex gap-4 pb-7 last:pb-0"
+            >
+              {/* ACTIVITY NUMBER */}
+              <div className="flex w-10 shrink-0 flex-col items-center">
+                <span className="z-10 flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">
+                  {index + 1}
+                </span>
+
+                {index < day.activities.length - 1 && (
+                  <span className="absolute top-9 bottom-0 w-px bg-cyan-100" />
+                )}
+              </div>
+
+              {/* ACTIVITY CARD */}
+              <div className="min-w-0 flex-1 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-brand-700">
+                      {activity.time}
+                    </p>
+
+                    <h4 className="mt-1 text-base font-semibold text-brand-900">
+                      {activity.title}
+                    </h4>
+                  </div>
+
+                  <strong className="text-sm text-brand-700">
+                    {money(trip, activity.cost)}
+                  </strong>
+                </div>
+
+                {/* ACTIVITY DETAILS */}
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                  <span>
+                    {activity.durationMinutes} minutes
+                  </span>
+
+                  {activity.travelMinutesFromPrevious > 0 && (
+                    <span>
+                      Next stop:{" "}
+                      {activity.travelMinutesFromPrevious} min ·{" "}
+                      {Number(
+                        activity.distanceKmFromPrevious
+                      ).toFixed(1)}{" "}
+                      km
+                    </span>
+                  )}
+                </div>
+
+                {/* MODULE 6: WEATHER WARNINGS */}
+                {(trip.conditions?.warnings || [])
+                  .filter(
+                    (warning) =>
+                      warning.activityId === activity.id &&
+                      warning.date === day.date
+                  )
+                  .map((warning, warningIndex) => (
+                    <ConditionWarning
+                      key={`${warning.code}-${activity.id}-${warningIndex}`}
+                      warning={warning}
+                    />
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </article>
+    </div>
+  );
+}
+
 function OfferList({ title, items, render }) { return <div><p className="eyebrow">Travel options</p><h2 className="text-3xl font-semibold text-brand-900">{title}</h2>{items.length ? <div className="mt-6 grid gap-4">{items.map((item) => <article key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6">{render(item)}{item.googleMapsUri && <a href={item.googleMapsUri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm font-semibold text-brand-700 underline">View on Google Maps ↗</a>}</article>)}</div> : <div className="notice mt-6">No live {title.toLowerCase()} are available yet. Configure a live provider and select “Refresh travel data” to retrieve current results.</div>}</div>; }
 function Budget({ trip }) { const entries = Object.entries(trip.budgetBreakdown).filter(([key]) => !["currency", "remaining", "estimatedTotal"].includes(key)); const remaining = Number(trip.budgetBreakdown.remaining || 0); const overBudget = remaining < 0; return <div><p className="eyebrow">Budget overview</p><h2 className="text-3xl font-semibold text-brand-900">Where your budget goes.</h2><div className="mt-6 grid gap-4 sm:grid-cols-2">{entries.map(([key, value]) => <div key={key} className="rounded-2xl border border-slate-200 p-5"><p className="text-sm capitalize text-slate-500">{key.replace(/([A-Z])/g, " $1")}</p><p className="mt-2 text-2xl font-semibold text-brand-900">{money(trip, value)}</p></div>)}</div><div className={`mt-5 rounded-2xl p-5 ${overBudget ? "border border-red-200 bg-red-50 text-red-900" : "bg-brand-50 text-brand-900"}`}><p className="text-sm font-semibold">{overBudget ? "Can't afford this plan" : "Estimated budget remaining"}</p><p className="mt-1 text-2xl font-semibold">{overBudget ? `${money(trip, Math.abs(remaining))} over budget` : money(trip, remaining)}</p><p className="mt-2 text-sm">{overBudget ? "Increase your budget or reduce activities, flights, or accommodation." : "This estimate stays within your planned budget."}</p></div></div>; }
 function Routes({ trip }) { const [selectedDay, setSelectedDay] = useState(trip.routes[0]?.day || 1); const route = trip.routes.find((item) => item.day === selectedDay) || trip.routes[0]; const day = trip.itinerary.find((item) => item.day === selectedDay); const places = day?.activities.map((activity) => activity.location || activity.title) || []; const destinations = places.length ? places : route.stops.map((stop) => stop.location || stop.title); const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(trip.origin || destinations[0] || trip.destination)}&destination=${encodeURIComponent(destinations.at(-1) || trip.destination)}&waypoints=${encodeURIComponent(destinations.slice(0, -1).join("|"))}`; return <div><p className="eyebrow">Maps and transportation</p><h2 className="text-3xl font-semibold text-brand-900">Follow your route in Google Maps.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Select a day to view the real driving route and turn-by-turn navigation.</p><div className="mt-6 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">{trip.routes.map((item) => <button key={item.day} onClick={() => setSelectedDay(item.day)} className={`shrink-0 rounded-xl px-4 py-3 text-left ${item.day === selectedDay ? "bg-brand-900 text-white" : "bg-slate-50 text-slate-600"}`}><span className="block text-xs font-bold">DAY {item.day}</span><span className="mt-1 block text-xs">{item.totalDistanceKm.toFixed(1)} km estimated</span></button>)}</div><div className="mt-6"><RouteMap route={route} places={places} origin={trip.origin} destination={trip.destination} /></div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5"><div><p className="font-semibold text-brand-900">Day {route.day}</p><p className="mt-1 text-sm text-slate-500">{route.totalDistanceKm.toFixed(1)} km · {route.estimatedTravelMinutes} minutes estimated travel</p></div><a href={mapsUrl} target="_blank" rel="noreferrer" className="btn btn-primary">Open in Google Maps ↗</a></div></div>; }
