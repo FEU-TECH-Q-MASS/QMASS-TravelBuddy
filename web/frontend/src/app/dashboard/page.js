@@ -53,30 +53,19 @@ function TravelerDashboard({ user, onLogout }) {
   const [editingId, setEditingId] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    if (!getToken()) {
-      router.push("/login");
-      return;
-    }
-    api("/me")
-      .then(({ user }) => setUser(user))
-      .catch((e) => setError(e.message));
-    api("/trips")
-      .then(({ trips }) => setTrips(trips))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [router]);
-
-  function logout() {
-    clearToken();
-    router.push("/");
-  }
     const controller = new AbortController();
     api("/trips", { signal: controller.signal })
-      .then(({ trips }) => { if (!controller.signal.aborted) setTrips(trips); })
-      .catch((error) => { if (!controller.signal.aborted) setError(error.message); });
+      .then(({ trips }) => {
+        if (!controller.signal.aborted) setTrips(trips);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, []);
 
@@ -106,16 +95,6 @@ function TravelerDashboard({ user, onLogout }) {
           <h1 className="text-3xl leading-tight font-semibold tracking-tight text-white sm:text-5xl">Welcome{user?.display_name ? `, ${user.display_name.split(" ")[0]}` : " back"}.</h1>
           <p className="mt-4 max-w-md text-sm leading-7 text-white/80 sm:text-base">A little planning. A lot to look forward to.<br />Your next Philippine adventure starts here.</p>
           <Link href="/#plan-trip" className="btn btn-primary mt-7 hover:shadow-sm hover:shadow-black/10"><Icon name="plus" size={18} /> Plan a new trip</Link>
-    <section className="page-width section-space">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="eyebrow">Your travel desk</p>
-          <h1 className="page-title">Welcome, {user.display_name}.</h1>
-          <p className="mt-4 text-slate-500">Create, reopen, and refine your saved journeys.</p>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/#plan-trip" className="btn btn-primary">Plan a trip</Link>
-          <button type="button" onClick={onLogout} className="btn btn-outline">Log out</button>
         </div>
       </div>
 
@@ -130,26 +109,6 @@ function TravelerDashboard({ user, onLogout }) {
             <p className="mt-2 text-sm text-slate-500">Good things ahead. Pick up where you left off.</p>
           </div>
           <Link href="/explore" className="text-link text-xs">Explore destinations <Icon name="arrow" size={14} /></Link>
-      {error && <p className="notice mt-8">{error}</p>}
-      {success && <p role="status" className="notice mt-8">{success}</p>}
-
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
-        <Link href="/account" className="rounded-2xl border p-6 hover:border-brand-700">
-          <p className="text-xs font-semibold text-brand-700">ACCOUNT</p>
-          <h2 className="mt-2 text-xl font-semibold">Preferences</h2>
-          <p className="mt-2 text-sm text-slate-500">Profile, currency, and interests.</p>
-        </Link>
-        <Link href="/notifications" className="rounded-2xl border p-6 hover:border-brand-700">
-          <p className="text-xs font-semibold text-brand-700">ALERTS</p>
-          <h2 className="mt-2 text-xl font-semibold">Notifications</h2>
-          <p className="mt-2 text-sm text-slate-500">Review travel updates and alerts.</p>
-        </Link>
-      </div>
-
-      <div className="mt-14">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-brand-900">My trips</h2>
-          <span className="text-sm text-slate-500">{trips.length} saved</span>
         </div>
         {error && <p role="alert" className="notice mt-5">{error}</p>}
         {success && (
@@ -221,9 +180,8 @@ function TravelerDashboard({ user, onLogout }) {
           <div className="mt-4 space-y-1">
             <DashboardShortcut href="/account" icon="settings" title="Preferences" description="Profile, currency & interests" />
             <DashboardShortcut href="/notifications" icon="bell" title="Notifications" description="Your latest travel updates" />
-            {user?.role === "admin" && <DashboardShortcut href="/admin/users" icon="users" title="Manage users" description="Roles & account access" />}
           </div>
-          <button type="button" onClick={logout} className="mt-4 w-full border-t border-slate-100 pt-4 text-left text-xs font-medium text-slate-500 transition-colors hover:text-brand-700">Log out of your account <span aria-hidden="true">↗</span></button>
+          <button type="button" onClick={onLogout} className="mt-4 w-full border-t border-slate-100 pt-4 text-left text-xs font-medium text-slate-500 transition-colors hover:text-brand-700">Log out of your account <span aria-hidden="true">↗</span></button>
         </div>
         <div className="rounded-2xl border border-cyan-100 bg-[#eaf6f7] p-6">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-700"><Icon name="sun" size={21} /></span>
