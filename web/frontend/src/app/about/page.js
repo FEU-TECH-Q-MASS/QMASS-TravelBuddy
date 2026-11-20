@@ -41,6 +41,7 @@ export default function AboutPage() {
         <div className="relative min-h-110 overflow-hidden rounded-3xl">
           <Image
             src="/images/palawan-el-nido.jpg"
+            alt="Boats on blue water among limestone islands in El Nido, Palawan"
             loading="eager"
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
