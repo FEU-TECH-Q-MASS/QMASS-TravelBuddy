@@ -20,7 +20,7 @@ export default async function HomePage({ searchParams }) {
     <>
       <section className="relative mx-auto min-h-150 max-w-[1800px] overflow-hidden bg-brand-900 pb-30 sm:min-h-160">
         <Image
-          src="/images/palawan.jpg"
+          src="/images/palawan-coron-lagoon.jpg"
           alt="Blue-green waters and limestone islands in Palawan, Philippines"
           fill
           priority
