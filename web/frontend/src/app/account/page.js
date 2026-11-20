@@ -1,4 +1,64 @@
 "use client";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-export default function AccountPage() { const [user, setUser] = useState(null); const [notice, setNotice] = useState(""); useEffect(() => { api("/auth/me").then(({ user: value }) => setUser(value)).catch((e) => setNotice(e.message)); }, []); if (!user) return <section className="page-width section-space">{notice || "Loading account…"}</section>; async function save(e) { e.preventDefault(); const form = new FormData(e.currentTarget); const { user: value } = await api("/auth/me", { method: "PATCH", body: JSON.stringify({ name: form.get("name"), preferences: { currency: form.get("currency"), interests: form.getAll("interests") } }) }); setUser(value); setNotice("Preferences saved."); } return <section className="page-width section-space"><p className="eyebrow">Account and preferences</p><h1 className="page-title">Make it feel like your trip.</h1><form onSubmit={save} className="mt-10 max-w-2xl space-y-5 rounded-3xl border p-6"><label className="field-label">Name<input className="input mt-2" name="name" defaultValue={user.name} /></label><label className="field-label">Email<input className="input mt-2 bg-slate-50" value={user.email} readOnly /></label><label className="field-label">Default currency<select className="input mt-2" name="currency" defaultValue={user.preferences?.currency || "PHP"}><option>PHP</option><option>USD</option><option>EUR</option><option>JPY</option></select></label><label className="field-label">Default interests<input className="input mt-2" name="interests" placeholder="Nature" /></label><button className="btn btn-primary">Save preferences</button>{notice && <p className="notice">{notice}</p>}</form></section>; }
+import { api, getToken } from "@/lib/api";
+import { useRouter } from "next/navigation";
+
+export default function AccountPage() {
+  const [user, setUser] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [saving, setSaving] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+    api("/me")
+      .then(({ user: value }) => setUser(value))
+      .catch((error) => setNotice(error.message));
+  }, [router]);
+
+  if (!user) return <section className="page-width section-space">{notice || "Loading account…"}</section>;
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    setNotice("");
+    try {
+      const form = new FormData(event.currentTarget);
+      const { user: value } = await api("/me", {
+        method: "PATCH",
+        body: JSON.stringify({ display_name: form.get("display_name") }),
+      });
+      setUser(value);
+      setNotice("Profile saved.");
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="page-width section-space">
+      <p className="eyebrow">Account and preferences</p>
+      <h1 className="page-title">Make it feel like your trip.</h1>
+      <form onSubmit={save} className="mt-10 max-w-2xl space-y-5 rounded-3xl border p-6">
+        <label className="field-label">
+          Display name
+          <input className="input mt-2" name="display_name" defaultValue={user.display_name || ""} maxLength={100} required />
+        </label>
+        <label className="field-label">
+          Email
+          <input className="input mt-2 bg-slate-50" value={user.email} readOnly />
+        </label>
+        <p className="text-sm text-slate-500">Role: {user.role || "traveler"}</p>
+        <button className="btn btn-primary" disabled={saving}>
+          {saving ? "Saving…" : "Save profile"}
+        </button>
+        {notice && <p className="notice" role="status">{notice}</p>}
+      </form>
+    </section>
+  );
+}

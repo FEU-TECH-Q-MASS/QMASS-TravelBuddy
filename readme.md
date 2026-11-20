@@ -210,6 +210,7 @@ Add values for Preview as well if you plan to test a preview deployment.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key for that Supabase project |
 | `SUPABASE_URL` | The same Supabase project URL for Express |
 | `SUPABASE_SECRET_KEY` | Server-side key for that Supabase project. Store as a Secret. |
+| `GOOGLE_MAPS_SERVER_API_KEY` | Server-side key restricted to Routes API; never expose as `NEXT_PUBLIC_*` |
 | `GEMINI_API_KEY` | Optional Secret for AI-generated itineraries and travel suggestions |
 | `OPENWEATHER_API_KEY` | Optional Secret for live weather |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser key for live route maps |
