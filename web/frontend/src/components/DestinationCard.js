@@ -5,15 +5,17 @@ export default function DestinationCard({ destination, large = false }) {
   return (
     <Link
       href={`/explore/${destination.slug}`}
-      className={`destination-card group ${large ? "min-h-100" : "min-h-82"}`}
+      className={`destination-card group bg-linear-to-br from-brand-700 to-brand-900 ${large ? "min-h-100" : "min-h-82"}`}
     >
-      <Image
-        src={destination.image}
-        alt={destination.alt}
-        fill
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        className="object-cover transition-transform duration-700 group-hover:scale-105"
-      />
+      {destination.image && (
+        <Image
+          src={destination.image}
+          alt={destination.alt}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      )}
       <div className="absolute inset-0 bg-linear-to-t from-slate-950/85 via-slate-950/5 to-transparent" />
       <span className="absolute left-5 top-5 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-slate-800">
         {destination.interests[0]}

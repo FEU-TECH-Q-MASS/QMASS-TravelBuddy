@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import DestinationCard from "@/components/DestinationCard";
-import { destinations } from "@/lib/destinations";
+import { destinations, getDestinationsWithImages } from "@/lib/destinations";
 
 export function generateStaticParams() {
   return destinations.map(({ slug }) => ({ slug }));
@@ -19,19 +19,22 @@ export async function generateMetadata({ params }) {
 }
 export default async function DestinationPage({ params }) {
   const { slug } = await params;
-  const destination = destinations.find((item) => item.slug === slug);
+  const availableDestinations = await getDestinationsWithImages();
+  const destination = availableDestinations.find((item) => item.slug === slug);
   if (!destination) notFound();
   return (
     <>
-      <section className="relative min-h-115 bg-brand-900">
-        <Image
-          src={destination.image}
-          alt={destination.alt}
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
+      <section className="relative min-h-115 bg-linear-to-br from-brand-700 to-brand-900">
+        {destination.image && (
+          <Image
+            src={destination.image}
+            alt={destination.alt}
+            fill
+            preload
+            sizes="100vw"
+            className="object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-linear-to-r from-slate-950/80 to-slate-950/10" />
         <div className="page-width relative py-16">
           <Link
@@ -106,7 +109,7 @@ export default async function DestinationPage({ params }) {
       <section className="page-width pb-20">
         <h2 className="section-title">Keep your curiosity going.</h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {destinations
+          {availableDestinations
             .filter((item) => item.slug !== slug)
             .slice(0, 3)
             .map((item) => (

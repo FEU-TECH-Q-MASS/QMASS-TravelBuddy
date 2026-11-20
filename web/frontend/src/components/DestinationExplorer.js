@@ -2,10 +2,9 @@
 import { useState } from "react";
 import DestinationCard from "./DestinationCard";
 import Icon from "@/components/Icon";
-import { destinations } from "@/lib/destinations";
 import { interestOptions } from "@/lib/tripPlanning";
 
-export default function DestinationExplorer() {
+export default function DestinationExplorer({ destinations }) {
   const [interest, setInterest] = useState("All");
   const [search, setSearch] = useState("");
   const filtered = destinations.filter(

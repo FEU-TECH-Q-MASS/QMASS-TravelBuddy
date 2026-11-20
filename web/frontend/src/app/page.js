@@ -96,6 +96,30 @@ export default async function HomePage({ searchParams }) {
           {destinations.slice(0, 5).map((destination) => (
             <DestinationCard key={destination.slug} destination={destination} />
           ))}
+          <Link
+            href="/explore"
+            className="destination-card group min-h-82 flex-col justify-between bg-brand-900 p-6 text-white"
+          >
+            <Image
+              src="/images/manila.jpg"
+              alt=""
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/20 to-slate-950/10" />
+            <span className="relative self-start rounded-full bg-slate-950/50 p-2.5 text-amber-200">
+              <Icon name="compass" size={26} />
+            </span>
+            <div className="relative flex items-center justify-between gap-4">
+              <h3 className="text-2xl font-semibold tracking-tight">
+                Explore more destinations
+              </h3>
+              <span className="shrink-0 rounded-full border border-white/50 p-2 transition-colors group-hover:bg-white group-hover:text-slate-900">
+                <Icon size={17} />
+              </span>
+            </div>
+          </Link>
         </div>
         <p className="mt-4 text-[11px] text-slate-400">
           Curated destination inspiration · Availability and travel conditions

@@ -1,11 +1,14 @@
 import DestinationExplorer from "@/components/DestinationExplorer";
 import ClosingCta from "@/components/ClosingCta";
+import { getDestinationsWithImages } from "@/lib/destinations";
 export const metadata = {
   title: "Explore destinations",
   description:
     "Find destination inspiration for your next trip, from quiet coastlines to culture-filled city streets.",
 };
-export default function ExplorePage() {
+export default async function ExplorePage() {
+  const destinations = await getDestinationsWithImages();
+
   return (
     <>
       <section className="page-heading">
@@ -22,7 +25,7 @@ export default function ExplorePage() {
           </p>
         </div>
       </section>
-      <DestinationExplorer />
+      <DestinationExplorer destinations={destinations} />
       <ClosingCta />
     </>
   );
