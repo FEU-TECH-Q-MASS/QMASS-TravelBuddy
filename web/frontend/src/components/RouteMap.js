@@ -26,7 +26,7 @@ function RouteEstimate({ routeQuery }) {
   );
 }
 
-export default function RouteMap({ locations, showEstimate = false }) {
+export default function RouteMap({ locations, showEstimate = false, attribution }) {
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
 
   if (!locations.length) {
@@ -77,9 +77,12 @@ export default function RouteMap({ locations, showEstimate = false }) {
           src={`https://www.google.com/maps/embed/v1/${singleStop ? "place" : "directions"}?${embedQuery}`}
           className="h-105 w-full border-0" loading="lazy" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       ) : (
-        <ol className="list-decimal space-y-2 py-4 pr-5 pl-10 text-sm text-slate-700">
-          {locations.map((location, index) => <li key={`${index}-${location}`}>{location}</li>)}
-        </ol>
+        <>
+          <ol className="list-decimal space-y-2 py-4 pr-5 pl-10 text-sm text-slate-700">
+            {locations.map((location, index) => <li key={`${index}-${location}`}>{location}</li>)}
+          </ol>
+          {attribution && <div className="px-5 pb-3">{attribution}</div>}
+        </>
       )}
     </section>
     {showEstimate && (singleStop

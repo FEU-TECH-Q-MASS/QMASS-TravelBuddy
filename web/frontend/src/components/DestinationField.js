@@ -1,16 +1,17 @@
-import { destinationOptions, findDestination, palawanOptions } from "@/lib/travelOptions";
+import { nationwideDestinationOptions, findTripDestination, palawanOptions } from "@/lib/travelOptions";
 import TripOptionField from "@/components/TripOptionField";
 
 export default function DestinationField({ value, onChange, error, id = "destination", className }) {
-  const selected = findDestination(value);
+  const selected = findTripDestination(value);
   const area = selected?.parent || selected?.code || value;
   const isPalawan = area === "PAL";
   const fieldProps = { "aria-invalid": Boolean(error), "aria-describedby": error ? `${id}-error` : undefined };
-  const options = area && !selected ? [[area, area], ...destinationOptions] : destinationOptions;
+  const options = area && !selected ? [[area, area], ...nationwideDestinationOptions] : nationwideDestinationOptions;
 
   return (
     <div className={className}>
       <TripOptionField id={id} label="Destination" placeholder="Choose destination" options={options}
+        searchPlaceholder="Search city, municipality, or province" maxResults={50}
         value={area} onChange={(code) => onChange(code === "PAL" && selected?.parent ? selected.code : code)}
         error={isPalawan ? undefined : error} />
       {isPalawan && (
@@ -24,6 +25,7 @@ export default function DestinationField({ value, onChange, error, id = "destina
         </div>
       )}
       {isPalawan && error && <span id={`${id}-error`} className="mt-2 block text-xs text-red-700">{error}</span>}
+      {selected?.locality && <p className="mt-2 text-xs text-slate-500">Source: Philippine Statistics Authority (PSGC)</p>}
     </div>
   );
 }

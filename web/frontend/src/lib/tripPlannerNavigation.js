@@ -1,10 +1,12 @@
-import { destinationOptions, findDestination, palawanOptions } from "./travelOptions.js";
+import { destinationOptions, findTripDestination, palawanOptions } from "./travelOptions.js";
 
 export const newTripPath = "/trips/new";
+export const myTripsHeadingId = "my-trips-title";
+export const myTripsHref = `/dashboard#${myTripsHeadingId}`;
 
 export function tripDestinationCode(value) {
   if (typeof value !== "string" || !value.trim()) return "";
-  const known = findDestination(value);
+  const known = findTripDestination(value);
   if (known) return known.code;
   const name = value.trim().toLowerCase();
   return [...destinationOptions, ...palawanOptions.map(({ code, name }) => [code, name])].find(([, label]) =>
@@ -22,6 +24,7 @@ export function newTripHref({ destination, draft } = {}) {
 }
 
 export function tripAuthDestination(value) {
+  if (value === myTripsHref) return myTripsHref;
   if (typeof value !== "string") return "/dashboard";
   const [path, query] = value.split("?");
   if (path !== newTripPath) return "/dashboard";

@@ -35,14 +35,14 @@ function formatTripDate(value) {
 }
 
 function itineraryUpdateMessage(update, busy, error) {
-  if (busy === "schedule") return "Trip saved. Generating an AI itinerary for your updated trip…";
+  if (busy === "schedule") return "Planning your itinerary and looking up venues…";
   if (busy === "budget") return "Looking for activities that fit your group budget…";
   if (error) return error;
-  if (update?.status === "pending") return "Your edits are saved. Generate an AI itinerary for the updated trip.";
+  if (update?.status === "pending") return "Generate an itinerary with local venue listings.";
   if (update?.status === "fixed-costs") return "Airfare, lodging, meals, and transport already exceed your budget. Edit your trip costs or budget before replanning.";
   if (update?.status === "unfit") return "Gemini did not find a plan within your estimated budget. Your existing itinerary is still saved.";
   if (update?.status === "failed") return update.reason === "schedule"
-    ? "AI generation was unavailable. Your edits and planning preview are saved."
+    ? "We couldn’t generate an itinerary with venue lookup. Your existing plan is still saved."
     : "AI replanning was unavailable. Your existing itinerary is still saved.";
   return "";
 }
@@ -196,7 +196,8 @@ export default function TripWorkspace({ params }) {
   const { estimatedTotal, remaining } = trip.budgetBreakdown;
   const update = trip.itineraryUpdate;
   const generationStatus = itineraryUpdateMessage(update, generationReason, generationError);
-  const canRetrySchedule = update?.reason === "schedule";
+  const needsVenueLookup = trip.generation?.provider === "google-gemini" && !trip.generation.venueLookup;
+  const canRetrySchedule = update?.reason === "schedule" || needsVenueLookup;
   const canReplanBudget = remaining < 0 && !canRetrySchedule && update?.status !== "fixed-costs";
   const scheduleKey = `${trip.id}:${trip.destination}:${trip.departure}:${trip.returnDate}`;
 
@@ -267,11 +268,12 @@ async function testDuffelFlights() {
       </div>
       {(generationStatus || saved || canRetrySchedule || canReplanBudget) && (
         <div className="notice mt-5 flex flex-wrap items-center justify-between gap-3">
-          <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || "Looking for a lower-cost itinerary?"}</p>
+          <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || (needsVenueLookup
+            ? "Regenerate this itinerary to look up its venues." : "Looking for a lower-cost itinerary?")}</p>
           {(canRetrySchedule || canReplanBudget) && (
             <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
               onClick={() => void updateItinerary(trip, canRetrySchedule ? "schedule" : "budget")}>
-              {canRetrySchedule ? (update.status === "pending" && !generationError ? "Generate AI itinerary" : "Retry AI generation") : "Replan to fit budget"}
+              {canRetrySchedule ? (update?.status === "failed" || generationError ? "Retry AI generation" : "Generate AI itinerary") : "Replan to fit budget"}
             </button>
           )}
         </div>
@@ -284,7 +286,7 @@ async function testDuffelFlights() {
       </div>
       {error && <p className="notice mt-5">{error}</p>}
       <div className="mt-8">
-        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} />}
+        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} needsVenueLookup={needsVenueLookup} />}
         {tab === "transport" && (
           <div>
             <h2 className="text-3xl font-semibold text-brand-900">Getting there</h2>
@@ -422,7 +424,7 @@ async function testDuffelFlights() {
         )}
         {tab === "hotels" && <Hotels trip={trip} />}
         {tab === "budget" && <Budget trip={trip} />}
-        {tab === "routes" && <Routes key={scheduleKey} trip={trip} />}
+        {tab === "routes" && <Routes key={scheduleKey} trip={trip} needsVenueLookup={needsVenueLookup} />}
         {tab === "conditions" && <div aria-busy={refreshing}>{refreshing && <p role="status" className="notice mb-5">Updating weather and travel conditions…</p>}<Conditions trip={trip} /></div>}
       </div>
     </section>
@@ -438,8 +440,32 @@ function Summary({ label, value, detail }) {
   );
 }
 
-//Iteninerary block - had to do a quick refactor, it was hurting my head.
-function Itinerary({ trip }) {
+function useDayVenues(trip, day) {
+  const path = day?.activities.some(({ placeId }) => placeId) ? `/trips/${trip.id}/venues/${day.day}` : null;
+  const key = path ? `${path}:${trip.generation?.generatedAt}` : null;
+  const [result, setResult] = useState(null);
+  useEffect(() => {
+    if (!path) return;
+    const controller = new AbortController();
+    api(path, { signal: controller.signal, cache: "no-store" })
+      .then(({ venues }) => { if (!controller.signal.aborted) setResult({ key, venues }); })
+      .catch(() => { if (!controller.signal.aborted) setResult({ key, venues: {} }); });
+    return () => controller.abort();
+  }, [key, path]);
+  return { venues: result?.key === key ? result.venues : {}, loading: Boolean(key && result?.key !== key) };
+}
+
+function VenueAttribution({ venues }) {
+  const sources = [...new Map(venues.flatMap(({ attributions }) => attributions || [])
+    .map(({ provider, providerUri }) => [provider, providerUri]))];
+  return <span className="text-xs text-[#5e5e5e]">
+    <span translate="no" className="whitespace-nowrap">Google Maps</span>
+    {sources.map(([provider, uri]) => <span key={provider}> · {/^https?:\/\//i.test(uri || "")
+      ? <a className="underline" href={uri} target="_blank" rel="noreferrer">{provider}</a> : provider}</span>)}
+  </span>;
+}
+
+function Itinerary({ trip, needsVenueLookup }) {
   const [selectedDay, setSelectedDay] = useState(
     trip.itinerary[0]?.day || 1
   );
@@ -447,6 +473,7 @@ function Itinerary({ trip }) {
   const day =
     trip.itinerary.find((item) => item.day === selectedDay) ||
     trip.itinerary[0];
+  const { venues, loading } = useDayVenues(trip, day);
 
   return (
     <div>
@@ -512,7 +539,10 @@ function Itinerary({ trip }) {
 
         {/* ACTIVITIES */}
         <div className="p-6">
-          {day.activities.map((activity, index) => (
+          {day.activities.map((activity, index) => {
+            const venue = venues[activity.placeId];
+            const meal = ["breakfast", "lunch", "dinner"].includes(activity.venueKind);
+            return (
             <div
               key={activity.id}
               className="relative flex gap-4 pb-7 last:pb-0"
@@ -537,11 +567,12 @@ function Itinerary({ trip }) {
                     </p>
 
                     <h4 className="mt-1 text-base font-semibold text-brand-900">
-                      {activity.title}
+                      {needsVenueLookup ? "Scheduled activity" : activity.title}
                     </h4>
                   </div>
 
-                  <strong className="text-sm text-brand-700">{money(trip, activity.cost)} per traveler</strong>
+                  {meal ? <span className="text-sm text-brand-700">Included in meal allowance</span>
+                    : activity.venueKind !== "free_time" && <strong className="text-sm text-brand-700">{money(trip, activity.cost)} per traveler</strong>}
                 </div>
 
                 {/* ACTIVITY DETAILS */}
@@ -550,11 +581,23 @@ function Itinerary({ trip }) {
                     {activity.durationMinutes} minutes
                   </span>
 
-                  {activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
+                  {!needsVenueLookup && activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
+                  {!venue && (needsVenueLookup || (activity.venueKind && activity.venueKind !== "free_time" && !activity.venueSource)) &&
+                    <span>{loading && activity.placeId ? "Looking up venue…" : "Venue to be confirmed"}</span>}
                 </div>
+                {venue && <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <a href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: venue.name, query_place_id: activity.placeId })}`}
+                    target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-900 hover:underline">{venue.name}</a>
+                  {venue.address && <p className="text-xs text-slate-600">{venue.address}</p>}
+                  <VenueAttribution venues={[venue]} />
+                </div>}
+                {activity.venueSource && <div className="mt-3 text-xs text-slate-600">
+                  <p>{activity.venueNote}</p>
+                  <a href={activity.venueSource} target="_blank" rel="noreferrer" className="underline">Municipal tourism listing</a>
+                </div>}
 
                 {/* MODULE 6: WEATHER WARNINGS */}
-                {(trip.conditions?.warnings || [])
+                {!needsVenueLookup && (trip.conditions?.warnings || [])
                   .filter(
                     (warning) =>
                       warning.activityId === activity.id &&
@@ -568,7 +611,8 @@ function Itinerary({ trip }) {
                   ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </article>
     </div>
@@ -637,21 +681,24 @@ function Budget({ trip }) {
     </div>
   );
 }
-function Routes({ trip }) {
-  const routes = (trip.routes || []).map((route) => {
-    const day = trip.itinerary.find((item) => item.day === route.day);
-    const activities = day?.activities.map((activity) => activity.location || activity.title).filter(Boolean);
-    const stops = route.stops?.map((stop) => stop.location || stop.title).filter(Boolean);
-    const locations = orderedRouteLocations(activities?.length ? activities : stops?.length ? stops : [trip.destination]);
-    return { ...route, locations };
-  });
+function Routes({ trip, needsVenueLookup }) {
+  const routes = needsVenueLookup ? [] : trip.itinerary;
   const [selectedDay, setSelectedDay] = useState(routes[0]?.day);
-  if (!routes.length) return <p className="notice">There are no daily routes for this trip yet.</p>;
-
-  const mapRoutes = new Set(routes.map(({ locations }) => JSON.stringify(locations.map((location) => location.toLowerCase()))));
+  function routeStops(day) {
+    return day.activities.map((activity) => activity.placeId || activity.location || (activity.venueKind ? "" : activity.title)).filter(Boolean);
+  }
+  const mapRoutes = new Set(routes.map((day) => JSON.stringify(routeStops(day))));
   const showDaySelector = mapRoutes.size > 1;
   const sharedRoute = routes.length > 1 && !showDaySelector;
   const route = (showDaySelector && routes.find(({ day }) => day === selectedDay)) || routes[0];
+  const { venues, loading } = useDayVenues(trip, route);
+  if (!route) return <p className="notice">There are no mapped stops for this itinerary yet.</p>;
+
+  const locations = orderedRouteLocations(route.activities.map((activity) => {
+    const venue = venues[activity.placeId];
+    if (venue) return [venue.name, venue.address].filter(Boolean).join(", ");
+    return activity.location || (activity.venueKind ? "" : activity.title);
+  }));
 
   return (
     <div>
@@ -671,7 +718,11 @@ function Routes({ trip }) {
         </>
       )}
       {sharedRoute && <p className="mt-3 text-sm text-slate-500">The same route applies to all {routes.length} days.</p>}
-      <div className="mt-6"><RouteMap locations={route.locations} showEstimate={!sharedRoute} /></div>
+      <div className="mt-6">
+        {loading ? <p className="notice">Looking up mapped stops…</p>
+          : <RouteMap locations={locations} showEstimate={!sharedRoute}
+            attribution={Object.keys(venues).length ? <VenueAttribution venues={Object.values(venues)} /> : null} />}
+      </div>
     </div>
   );
 }

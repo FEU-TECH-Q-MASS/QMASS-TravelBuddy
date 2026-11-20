@@ -3,7 +3,7 @@ import transport from "../../../shared/transport.cjs";
 import photoCredits from "./destinationPhotoCredits.json" with { type: "json" };
 
 export const { getTripTransport } = transport;
-export const { findDestination } = catalog;
+export const { findDestination, findTripDestination } = catalog;
 
 export const palawanOptions = catalog.destinations.filter((place) => place.parent === "PAL");
 
@@ -21,6 +21,12 @@ export const destinationOptions = catalog.destinations
     code === "PAL" ? palawanOptions.map((base) => `${base.name} ${base.airport} ${base.airportName}`).join(" ") : `${airport || ""} ${airportName || ""}`,
   ])
   .sort((first, second) => first[1].localeCompare(second[1]));
+
+export const nationwideDestinationOptions = [
+  ...destinationOptions,
+  ...catalog.localDestinations.map(({ code, name }) => [code, name])
+    .sort((first, second) => first[1].localeCompare(second[1], "en-PH")),
+];
 
 function normalizePhotoDestination(value) {
   return String(value ?? "").trim().toLowerCase().replace(/\s*,\s*/g, ", ").replace(/, philippines$/, "");

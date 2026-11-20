@@ -43,6 +43,19 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
 
   const forbidden = await patch(input, "someone-else");
   assert.equal(forbidden.status, 404);
+  const nationwide = await create({ ...input, destination: "0305415000" });
+  assert.equal(nationwide.status, 201);
+  const { trip: porac } = await nationwide.json();
+  t.after(() => trips.delete(porac.id));
+  assert.equal(porac.destination, "0305415000");
+  assert.equal(porac.itinerary[0].activities[0].location, "Porac, Pampanga, Philippines");
+  assert.equal((await create({ ...input, destination: "0000000000" })).status, 400);
+  const venuePath = url.replace(original.id, porac.id) + "/venues/1";
+  const venues = await fetch(venuePath);
+  assert.equal(venues.status, 200);
+  assert.equal(venues.headers.get("Cache-Control"), "private, no-store");
+  assert.deepEqual(await venues.json(), { venues: {} });
+  assert.equal((await fetch(venuePath, { headers: { "x-test-user": "someone-else" } })).status, 404);
   for (const invalid of [
     { returnDate: "2026-11-29" }, { departure: "invalid" }, { returnDate: "2026-12-20" },
     { travelers: 0 }, { budget: 0 }, { currency: "INVALID" }, { destination: " " }, { destination: "PAL" },

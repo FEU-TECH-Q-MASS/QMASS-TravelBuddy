@@ -10,7 +10,7 @@ import Icon from "@/components/Icon";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import TripEditForm from "@/components/TripEditForm";
 import { destinationImage, resolveTravelLocation } from "@/lib/travelOptions";
-import { newTripPath } from "@/lib/tripPlannerNavigation";
+import { authHref, myTripsHeadingId, myTripsHref, newTripPath } from "@/lib/tripPlannerNavigation";
 
 const TRIPS_PER_PAGE = 4;
 
@@ -23,7 +23,10 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user && !signingOut.current) router.replace("/login");
+    if (!loading && !user && !signingOut.current) {
+      const next = window.location.hash === `#${myTripsHeadingId}` ? myTripsHref : "/dashboard";
+      router.replace(authHref("/login", next));
+    }
   }, [loading, user, router, signingOut]);
 
   if (loading || profileLoading || (user && !profile)) {
@@ -59,6 +62,12 @@ function TravelerDashboard({ user, onLogout }) {
   const firstPageButton = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
   const pageButtons = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPageButton + index);
   const paginationDisabled = Boolean(editingId || deletingId || generating);
+
+  useEffect(() => {
+    // The initial hash scroll can run before the authenticated dashboard renders.
+    if (window.location.hash !== `#${myTripsHeadingId}`) return;
+    tripsHeading.current?.scrollIntoView({ block: "start" });
+  }, []);
 
   function changePage(nextPage) {
     if (paginationDisabled || nextPage === currentPage) return;
@@ -135,11 +144,11 @@ function TravelerDashboard({ user, onLogout }) {
       </div>
 
       <div className="mt-9 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-7">
-      <section aria-labelledby="my-trips-title" className="min-w-0">
+      <section aria-labelledby={myTripsHeadingId} className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3">
-              <h2 ref={tripsHeading} id="my-trips-title" tabIndex={-1} className="scroll-mt-28 text-2xl font-semibold tracking-tight text-brand-900">My trips</h2>
+              <h2 ref={tripsHeading} id={myTripsHeadingId} tabIndex={-1} className="scroll-mt-32 text-2xl font-semibold tracking-tight text-brand-900">My trips</h2>
               {!loading && <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500">{trips.length} saved</span>}
             </div>
             <p className="mt-2 text-sm text-slate-500">Good things ahead. Pick up where you left off.</p>

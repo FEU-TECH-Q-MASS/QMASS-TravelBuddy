@@ -4,10 +4,11 @@ import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import Logo from "./Logo";
 import Icon from "@/components/Icon";
-import { newTripPath } from "@/lib/tripPlannerNavigation";
+import { myTripsHref, newTripPath } from "@/lib/tripPlannerNavigation";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
+  [myTripsHref, "My Trips"],
   ["/how-it-works", "How It Works"],
   ["/about", "About"],
   ["/contact", "Contact"],
@@ -25,8 +26,10 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
   const [open, setOpen] = useState(false);
   const toggle = useRef(null);
   const navigation = isAdmin ? adminLinks : isTraveler ? travelerLinks : publicLinks;
-  const isActive = (href) =>
-    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+  const isActive = (href) => {
+    const [path] = href.split("#");
+    return pathname === path || (path !== "/" && pathname.startsWith(`${path}/`));
+  };
   function closeMenu() {
     setOpen(false);
   }
@@ -36,17 +39,22 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
       toggle.current?.focus();
     }
   }
-  const accountAction = user ? <>{!isAdmin && <Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link>}<button type="button" onClick={onLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button></> : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
+  const accountAction = user
+    ? <>
+        {isTraveler && <Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link>}
+        <button type="button" onClick={onLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button>
+      </>
+    : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
   return (
     <header className="site-header" onKeyDown={onKeyDown}>
       <a className="skip-link" href="#main-content">
         Skip to Content
       </a>
-      <div className="page-width flex min-h-22 items-center justify-between gap-8">
+      <div className="page-width flex min-h-22 items-center justify-between gap-8 lg:gap-4 xl:gap-8">
         <Logo href={homeHref} onClick={closeMenu} />
         <nav
           aria-label="Main navigation"
-          className="hidden items-center gap-7 lg:flex"
+          className="hidden items-center gap-4 lg:flex xl:gap-7"
         >
           {navigation.map(([href, label]) => (
             <Link
@@ -59,7 +67,7 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">{accountAction}</div>
+        <div className="flex shrink-0 items-center gap-3">{accountAction}</div>
         <button
           type="button"
           ref={toggle}
@@ -89,7 +97,12 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
               {label}
             </Link>
           ))}
-          {user ? <>{!isAdmin && <Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link>}<button type="button" onClick={() => { closeMenu(); onLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button></> : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
+          {user
+            ? <>
+                {isTraveler && <Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link>}
+                <button type="button" onClick={() => { closeMenu(); onLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button>
+              </>
+            : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
         </nav>
       )}
     </header>
