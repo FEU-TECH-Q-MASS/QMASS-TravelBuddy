@@ -172,9 +172,6 @@ export default function AuthForm({ mode }) {
           </>
         )}
       </p>
-      <div className="notice mt-7 text-xs">
-        {recovery ? "We will prepare a reset link for an account matching this email." : "Use your TravelBuddy account to save trips and manage preferences."}
-      </div>
       <form onSubmit={submit} noValidate className="mt-7 space-y-5">
         {signup && (
           <div className="grid gap-4 sm:grid-cols-2">
