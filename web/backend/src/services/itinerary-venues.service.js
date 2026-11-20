@@ -80,11 +80,6 @@ async function resolveItineraryVenues(itinerary, trip) {
     ? await Promise.allSettled(kinds.map((kind) => findVenues(kind, trip, signal)))
     : [];
   const local = tourismVenues[trip.destination] || {};
-  const hasLocalMatch = itinerary.some(({ activities }) => activities.some(({ venueKind, durationMinutes }) =>
-    local[venueKind] && durationMinutes >= local[venueKind].minimumMinutes));
-  if (kinds.length && !lookups.some(({ status }) => status === "fulfilled") && !hasLocalMatch) {
-    throw new Error("Venue lookup is unavailable.");
-  }
   const byKind = new Map(kinds.map((kind, index) => [kind, lookups[index]?.value || []]));
   const used = new Set();
 
@@ -118,8 +113,4 @@ async function getItineraryVenueDetails(activities) {
   return Object.fromEntries(places.flatMap((result) => result.status === "fulfilled" && result.value[1] ? [result.value] : []));
 }
 
-function canLookUpVenues(destination) {
-  return Boolean(configuredKey() || Object.hasOwn(tourismVenues, destination));
-}
-
-module.exports = { venueKinds, canLookUpVenues, resolveItineraryVenues, getItineraryVenueDetails };
+module.exports = { venueKinds, resolveItineraryVenues, getItineraryVenueDetails };

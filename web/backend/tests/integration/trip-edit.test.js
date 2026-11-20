@@ -116,20 +116,34 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(failed.destination, trip.destination);
   assert.deepEqual(failed.itinerary, trip.itinerary);
 
-  const generatedPlan = (current, cost) => ({
-    provider: "google-gemini", model: "test", generatedAt: new Date().toISOString(),
+  const generatedPlan = (current, cost, venueLookup = true) => ({
+    provider: "google-gemini", model: "test", generatedAt: new Date().toISOString(), venueLookup,
     itinerary: current.itinerary.map((day) => ({
       ...day,
-      activities: [{ ...day.activities[0], title: "AI activity", cost }],
+      activities: [{
+        ...day.activities[0], title: "AI activity", cost, venueKind: "park",
+        placeId: venueLookup ? "test-venue" : undefined,
+      }],
     })),
   });
+  generate.mock.mockImplementation(async (current) => generatedPlan(current, 500, false));
+  const { trip: withoutVenues } = await (await generateFor(failed, "schedule")).json();
+  assert.equal(withoutVenues.itineraryUpdate, null);
+  assert.equal(withoutVenues.generation.venueLookup, false);
+  assert.equal(withoutVenues.itinerary[0].activities[0].venueKind, "park");
+
   generate.mock.mockImplementation(async (current) => generatedPlan(current, 500));
-  const successResponse = await generateFor(failed, "schedule");
+  const successResponse = await generateFor(withoutVenues, "schedule");
   assert.equal(successResponse.status, 200);
   const { trip: generated } = await successResponse.json();
   assert.equal(generated.itineraryUpdate, null);
   assert.equal(generated.generation.provider, "google-gemini");
   assert.equal(generated.itinerary[0].activities[0].title, "AI activity");
+
+  generate.mock.mockImplementation(async (current) => generatedPlan(current, 500, false));
+  const { trip: preserved } = await (await generateFor(generated, "schedule")).json();
+  assert.equal(preserved.itineraryUpdate.status, "venues-unavailable");
+  assert.deepEqual(preserved.itinerary, generated.itinerary);
 
   const fixedCosts = generated.budgetBreakdown.estimatedTotal - generated.budgetBreakdown.activities;
   const updatedInput = { ...input, destination: trip.destination, returnDate: trip.returnDate, travelers: trip.travelers };
@@ -140,6 +154,7 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(generate.mock.callCount(), beforeFixedCostsCheck);
 
   const { trip: overBudget } = await (await patch({ ...updatedInput, budget: fixedCosts + 1000 })).json();
+  generate.mock.mockImplementation(async (current) => generatedPlan(current, 500));
   const { trip: unfit } = await (await generateFor(overBudget, "budget")).json();
   assert.equal(unfit.itineraryUpdate.status, "unfit");
   assert.deepEqual(unfit.itinerary, generated.itinerary);

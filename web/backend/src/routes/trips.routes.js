@@ -367,9 +367,14 @@ router.post("/:id/generate", async (req, res, next) => {
       const result = await generateItinerary(current).catch(() => null);
       if (result?.provider === "google-gemini") {
         const { itinerary, provider, model, generatedAt, venueLookup } = result;
-        const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt, venueLookup });
-        if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
-        else updated = candidate;
+        if (venueLookup === false && current.itinerary.some(({ activities }) =>
+          activities.some(({ placeId, venueSource }) => placeId || venueSource))) {
+          updated.itineraryUpdate.status = "venues-unavailable";
+        } else {
+          const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt, venueLookup });
+          if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
+          else updated = candidate;
+        }
       }
     }
     if (!await saveTripUpdate(updated, trip)) return tripChanged(res);

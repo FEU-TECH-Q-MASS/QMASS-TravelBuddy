@@ -1,7 +1,7 @@
 const crypto = require("node:crypto");
 const { destinationLocation } = require("../../../shared/destinations.cjs");
 const { dayMs, validateTripDates } = require("../../../shared/tripDates.cjs");
-const { venueKinds, canLookUpVenues, resolveItineraryVenues } = require("./itinerary-venues.service");
+const { venueKinds, resolveItineraryVenues } = require("./itinerary-venues.service");
 
 const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const kinds = Object.keys(venueKinds);
@@ -69,7 +69,6 @@ function validateItinerary(value, trip) {
 
 async function generateItinerary(trip) {
   if (!process.env.GEMINI_API_KEY) return { itinerary: trip.itinerary, provider: "demo-fallback", model: null, generatedAt: new Date().toISOString() };
-  if (!canLookUpVenues(trip.destination)) throw new Error("Venue lookup is unavailable.");
   const { activities, remaining } = trip.budgetBreakdown;
   const activityBudget = Math.max(0, Math.round(remaining * 100) + Math.round(activities * 100)) / 100;
   const prompt = `Create a practical itinerary of activity categories. The backend will select venues. Return one item per calendar date from departure through return. Use increasing 24-hour HH:MM times and allow time between stops. Choose categories suited to the destination, trip interests, and length. Provide estimated activity fees per traveler in ${trip.currency}; meals and free time have zero activity cost. The activity budget is for the entire group across all days after airfare, lodging, meals, and transport. Trip: ${JSON.stringify({ destination: destinationLocation(trip.destination), departure: trip.departure, returnDate: trip.returnDate, travelers: trip.travelers, activityBudget, currency: trip.currency, interests: trip.interests || [] })}`;
@@ -102,7 +101,9 @@ async function generateItinerary(trip) {
     if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 750));
   }
   if (!itinerary) throw lastError;
-  return { itinerary: await resolveItineraryVenues(itinerary, trip), provider: "google-gemini", venueLookup: true, model, generatedAt: new Date().toISOString() };
+  const resolved = await resolveItineraryVenues(itinerary, trip);
+  const venueLookup = resolved.some(({ activities }) => activities.some(({ placeId, venueSource }) => placeId || venueSource));
+  return { itinerary: resolved, provider: "google-gemini", venueLookup, model, generatedAt: new Date().toISOString() };
 }
 
 module.exports = { generateItinerary };

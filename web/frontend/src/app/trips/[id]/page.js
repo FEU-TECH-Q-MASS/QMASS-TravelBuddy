@@ -42,8 +42,9 @@ function itineraryUpdateMessage(update, busy, error) {
   if (update?.status === "pending") return "Generate an itinerary with local venue listings.";
   if (update?.status === "fixed-costs") return "Airfare, lodging, meals, and transport already exceed your budget. Edit your trip costs or budget before replanning.";
   if (update?.status === "unfit") return "Gemini did not find a plan within your estimated budget. Your existing itinerary is still saved.";
+  if (update?.status === "venues-unavailable") return "We couldn’t confirm venues for the new plan. Your existing itinerary is still saved.";
   if (update?.status === "failed") return update.reason === "schedule"
-    ? "We couldn’t generate an itinerary with venue lookup. Your existing plan is still saved."
+    ? "We couldn’t generate an AI itinerary. Your existing plan is still saved."
     : "AI replanning was unavailable. Your existing itinerary is still saved.";
   return "";
 }
@@ -160,7 +161,8 @@ export default function TripWorkspace({ params }) {
     try {
       const { trip: updated } = await generateSavedItinerary(savedTrip, reason);
       setTrip((current) => current?.id === updated.id ? updated : current);
-      if (!updated.itineraryUpdate) setSaved("AI itinerary updated.");
+      if (!updated.itineraryUpdate) setSaved(updated.generation?.venueLookup === false
+        ? "AI itinerary saved. Venues are still unconfirmed." : "AI itinerary updated.");
     } catch (e) {
       setGenerationError(e.message);
     } finally {
@@ -198,8 +200,10 @@ export default function TripWorkspace({ params }) {
   const update = trip.itineraryUpdate;
   const generationStatus = itineraryUpdateMessage(update, generationReason, generationError);
   const needsVenueLookup = trip.generation?.provider === "google-gemini" && !trip.generation.venueLookup;
+  const hasUnconfirmedVenues = needsVenueLookup && trip.generation.venueLookup === false;
+  const hideLegacyVenues = needsVenueLookup && !hasUnconfirmedVenues;
   const canRetrySchedule = update?.reason === "schedule" || needsVenueLookup;
-  const canReplanBudget = remaining < 0 && !canRetrySchedule && update?.status !== "fixed-costs";
+  const canReplanBudget = remaining < 0 && update?.reason !== "schedule" && update?.status !== "fixed-costs";
   const scheduleKey = `${trip.id}:${trip.destination}:${trip.departure}:${trip.returnDate}`;
 
 
@@ -270,12 +274,19 @@ async function testDuffelFlights() {
       {(generationStatus || saved || canRetrySchedule || canReplanBudget) && (
         <div className="notice mt-5 flex flex-wrap items-center justify-between gap-3">
           <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || (needsVenueLookup
-            ? "Regenerate this itinerary to look up its venues." : "Looking for a lower-cost itinerary?")}</p>
+            ? "Venues are still unconfirmed. Regenerate to look them up." : "Looking for a lower-cost itinerary?")}</p>
           {(canRetrySchedule || canReplanBudget) && (
-            <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
-              onClick={() => void updateItinerary(trip, canRetrySchedule ? "schedule" : "budget")}>
-              {canRetrySchedule ? (update?.status === "failed" || generationError ? "Retry AI generation" : "Generate AI itinerary") : "Replan to fit budget"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {canRetrySchedule && <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
+                onClick={() => void updateItinerary(trip, "schedule")}>
+                {needsVenueLookup || update?.status === "venues-unavailable" ? "Regenerate with venues"
+                  : update?.status === "failed" || generationError ? "Retry AI generation" : "Generate AI itinerary"}
+              </button>}
+              {canReplanBudget && <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
+                onClick={() => void updateItinerary(trip, "budget")}>
+                Replan to fit budget
+              </button>}
+            </div>
           )}
         </div>
       )}
@@ -287,7 +298,7 @@ async function testDuffelFlights() {
       </div>
       {error && <p className="notice mt-5">{error}</p>}
       <div className="mt-8">
-        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} needsVenueLookup={needsVenueLookup} />}
+        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} hideLegacyVenues={hideLegacyVenues} />}
         {tab === "transport" && (
           <div>
             <h2 className="text-3xl font-semibold text-brand-900">Getting there</h2>
@@ -345,7 +356,7 @@ function VenueAttribution({ venues }) {
   </span>;
 }
 
-function Itinerary({ trip, needsVenueLookup }) {
+function Itinerary({ trip, hideLegacyVenues }) {
   const [selectedDay, setSelectedDay] = useState(
     trip.itinerary[0]?.day || 1
   );
@@ -447,7 +458,7 @@ function Itinerary({ trip, needsVenueLookup }) {
                     </p>
 
                     <h4 className="mt-1 text-base font-semibold text-brand-900">
-                      {needsVenueLookup ? "Scheduled activity" : activity.title}
+                      {hideLegacyVenues ? "Scheduled activity" : activity.title}
                     </h4>
                   </div>
 
@@ -461,8 +472,8 @@ function Itinerary({ trip, needsVenueLookup }) {
                     {activity.durationMinutes} minutes
                   </span>
 
-                  {!needsVenueLookup && activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
-                  {!venue && (needsVenueLookup || (activity.venueKind && activity.venueKind !== "free_time" && !activity.venueSource)) &&
+                  {!hideLegacyVenues && activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
+                  {!venue && (hideLegacyVenues || (activity.venueKind && activity.venueKind !== "free_time" && !activity.venueSource)) &&
                     <span>{loading && activity.placeId ? "Looking up venue…" : "Venue to be confirmed"}</span>}
                 </div>
                 {venue && <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -477,7 +488,7 @@ function Itinerary({ trip, needsVenueLookup }) {
                 </div>}
 
                 {/* MODULE 6: WEATHER WARNINGS */}
-                {!needsVenueLookup && (trip.conditions?.warnings || [])
+                {!hideLegacyVenues && (trip.conditions?.warnings || [])
                   .filter(
                     (warning) =>
                       warning.activityId === activity.id &&

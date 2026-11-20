@@ -12,7 +12,8 @@ const trip = {
 
 function configure(t, key, value) {
   const previous = process.env[key];
-  process.env[key] = value;
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
   t.after(() => {
     if (previous === undefined) delete process.env[key];
     else process.env[key] = previous;
@@ -87,11 +88,23 @@ test("generation retries malformed output and saves only eligible venue IDs", as
   });
 });
 
-test("a Places outage fails generation before replacing an existing itinerary", async (t) => {
-  configure(t, "GEMINI_API_KEY", "test-gemini");
-  configure(t, "GOOGLE_PLACES_API_KEY", "test-places");
-  t.mock.method(global, "fetch", async (url) => url.includes("generateContent")
-    ? geminiResponse([{ time: "12:00", kind: "lunch", durationMinutes: 90, cost: 0 }])
-    : new Response(null, { status: 503 }));
-  await assert.rejects(generateItinerary(trip), /Venue lookup is unavailable/);
-});
+for (const [scenario, placesResponse] of [
+  ["a missing Places key", null],
+  ["a Places outage", () => new Response(null, { status: 503 })],
+  ["a search with no matching venues", () => Response.json({})],
+]) {
+  test(`${scenario} keeps a generated itinerary with unconfirmed venues`, async (t) => {
+    configure(t, "GEMINI_API_KEY", "test-gemini");
+    configure(t, "GOOGLE_PLACES_API_KEY", placesResponse ? "test-places" : undefined);
+    const fetchMock = t.mock.method(global, "fetch", async (url) => url.includes("generateContent")
+      ? geminiResponse([{ time: "12:00", kind: "lunch", durationMinutes: 90, cost: 0 }])
+      : placesResponse());
+    const result = await generateItinerary({ ...trip, destination: "BAN" });
+    const [lunch] = result.itinerary[0].activities;
+    assert.equal(result.provider, "google-gemini");
+    assert.equal(result.venueLookup, false);
+    assert.equal(lunch.title, "Lunch break");
+    assert.equal(lunch.placeId, undefined);
+    assert.equal(fetchMock.mock.callCount(), placesResponse ? 2 : 1);
+  });
+}

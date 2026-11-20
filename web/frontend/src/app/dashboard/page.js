@@ -121,7 +121,9 @@ function TravelerDashboard({ user, onLogout }) {
     try {
       const { trip } = await generateSavedItinerary(updated, "schedule");
       setTrips((current) => current.map((item) => item.id === trip.id ? trip : item));
-      setSuccess(trip.itineraryUpdate ? "Trip saved with a planning preview. Open its workspace to retry AI generation." : "Trip saved. Your AI itinerary is ready.");
+      if (trip.itineraryUpdate) setSuccess("Trip saved with a planning preview. Open its workspace to retry AI generation.");
+      else if (trip.generation?.venueLookup === false) setSuccess("Trip and AI itinerary saved. Venues are still unconfirmed.");
+      else setSuccess("Trip saved. Your AI itinerary is ready.");
     } catch {
       setSuccess("Trip saved. Open its workspace to check the itinerary or retry AI generation.");
     } finally {
