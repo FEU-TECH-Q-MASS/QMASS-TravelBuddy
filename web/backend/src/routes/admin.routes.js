@@ -2,7 +2,7 @@ const { Router } = require("express");
 const { z } = require("zod");
 const { getSupabaseClient } = require("../config/supabase");
 const { createRequireAuth, createRequireAdmin } = require("../middleware/auth.middleware");
-const { createSupportInboxRouter } = require("./support.routes");
+const { createSupportInboxRouter, getSupportMessageCounts } = require("./support.routes");
 
 const pageSize = 50;
 const profileFields = "id, display_name, role, is_active";
@@ -79,7 +79,7 @@ function createAdminRouter(supabaseClient) {
     const profiles = () => client.from("profiles").select("id", { count: "exact", head: true });
     const now = Date.now();
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [newest, admins, active, inactive, newAccounts] = await Promise.all([
+    const [newest, admins, active, inactive, newAccounts, supportMessages] = await Promise.all([
       client.from("profiles")
         .select("id, display_name, role, created_at", { count: "exact" })
         .order("created_at", { ascending: false })
@@ -89,6 +89,7 @@ function createAdminRouter(supabaseClient) {
       profiles().eq("is_active", true),
       profiles().eq("is_active", false),
       profiles().gte("created_at", weekAgo).lte("created_at", new Date(now).toISOString()),
+      getSupportMessageCounts(client),
     ]);
     for (const result of [newest, admins, active, inactive, newAccounts]) {
       if (result.error) throw result.error;
@@ -101,6 +102,7 @@ function createAdminRouter(supabaseClient) {
         inactive: inactive.count,
         newAccounts: newAccounts.count,
       },
+      supportMessages,
       recentRegistrations: newest.data.map((profile) => ({
         id: profile.id,
         name: profile.display_name,

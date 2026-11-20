@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import AdminFilters from "@/components/admin/AdminFilters";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
 
@@ -10,6 +12,10 @@ const joinDate = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
   timeZone: "Asia/Manila",
 });
+const userFilters = [
+  { name: "role", label: "Role", options: [["", "All roles"], ["admin", "Admin"], ["traveler", "Traveler"]] },
+  { name: "status", label: "Status", options: [["", "All statuses"], ["active", "Active"], ["inactive", "Inactive"]] },
+];
 
 export default function AdminUsersPage() {
   const { user, loading, profile, profileLoading, profileError } = useSiteAuth();
@@ -58,7 +64,7 @@ function UserDirectory({ currentUserId, filters }) {
   const [updateNotice, setUpdateNotice] = useState("");
   const current = result?.page === page && result?.refresh === refresh ? result : null;
   const users = current?.users ?? [];
-  const applied = new URLSearchParams(filters);
+  const lastKnownPage = Math.max(page, result?.lastKnownPage ?? 1);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,26 +72,26 @@ function UserDirectory({ currentUserId, filters }) {
     query.set("page", String(page));
     api(`/admin/users?${query}`, { signal: controller.signal, cache: "no-store" })
       .then(({ users, hasNextPage }) => {
-        if (!controller.signal.aborted) setResult({ page, refresh, users, hasNextPage });
+        if (controller.signal.aborted) return;
+        if (filters && page > 1 && !users.length && !hasNextPage) setPage(page - 1);
+        else setResult((previous) => ({
+          page, refresh, users,
+          lastKnownPage: hasNextPage ? Math.max(page + 1, previous?.lastKnownPage ?? 1) : page,
+        }));
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setResult({ page, refresh, error: error.message });
+        if (!controller.signal.aborted) {
+          setResult((previous) => ({ page, refresh, error: error.message, lastKnownPage: previous?.lastKnownPage }));
+        }
       });
     return () => controller.abort();
   }, [filters, page, refresh]);
 
-  function applyFilters(event) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const query = new URLSearchParams();
-    for (const key of ["search", "role", "status"]) {
-      const value = data.get(key).trim();
-      if (value) query.set(key, value);
-    }
+  function applyFilters(query) {
     setPage(1);
     setUpdateError("");
     setUpdateNotice("");
-    router.push(query.size ? `/admin/users?${query}` : "/admin/users");
+    if (query !== filters) router.push(query ? `/admin/users?${query}` : "/admin/users");
   }
 
   function changePage(nextPage) {
@@ -114,30 +120,10 @@ function UserDirectory({ currentUserId, filters }) {
 
   return (
     <div className="mt-8">
-      <form onSubmit={applyFilters} className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-        <label className="field-label min-w-52 flex-1">
-          Search users
-          <input name="search" type="search" maxLength={254} placeholder="Name or email" defaultValue={applied.get("search") ?? ""} className="input mt-2" />
-        </label>
-        <label className="field-label w-36 grow sm:grow-0">
-          Role
-          <select name="role" defaultValue={applied.get("role") ?? ""} className="input mt-2">
-            <option value="">All roles</option>
-            <option value="admin">Admin</option>
-            <option value="traveler">Traveler</option>
-          </select>
-        </label>
-        <label className="field-label w-36 grow sm:grow-0">
-          Status
-          <select name="status" defaultValue={applied.get("status") ?? ""} className="input mt-2">
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <button type="submit" className="btn btn-dark disabled:opacity-50" disabled={pendingId !== null}>Apply filters</button>
-        {filters && <Link href="/admin/users" className="btn btn-outline">Clear filters</Link>}
-      </form>
+      <div className="mb-5">
+        <AdminFilters filters={filters} fields={userFilters} searchLabel="Search users" searchPlaceholder="Name or email"
+          disabled={pendingId !== null} onApply={applyFilters} />
+      </div>
 
       {updateError && <p className="notice mb-4" role="alert">{updateError}</p>}
       {updateNotice && <p className="notice mb-4" role="status">{updateNotice}</p>}
@@ -205,18 +191,13 @@ function UserDirectory({ currentUserId, filters }) {
           </table>
         </div>
       )}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        {current && !current.error && (
-          <p className="text-sm text-slate-600" role="status">{users.length} {users.length === 1 ? "user" : "users"} on this page</p>
-        )}
-        {(page > 1 || current?.hasNextPage) && (
-          <nav aria-label="User pages" className="ml-auto flex flex-wrap items-center gap-3">
-            <button type="button" className="btn btn-outline disabled:opacity-50" disabled={page === 1 || pendingId !== null} onClick={() => changePage(page - 1)}>Previous</button>
-            <span className="text-sm">Page {page}</span>
-            <button type="button" className="btn btn-outline disabled:opacity-50" disabled={!current?.hasNextPage || pendingId !== null} onClick={() => changePage(page + 1)}>Next</button>
-          </nav>
-        )}
-      </div>
+      {(users.length > 0 || lastKnownPage > 1) && (
+        <AdminPagination
+          label="User pages" page={page} lastPage={lastKnownPage} onChange={changePage}
+          disabled={!current || pendingId !== null}
+          summary={current?.users && `${users.length} ${users.length === 1 ? "user" : "users"} on this page`}
+        />
+      )}
     </div>
   );
 }
