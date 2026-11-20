@@ -30,3 +30,16 @@ export function resolveTravelLocation(value) {
   const location = String(value || "").trim();
   return locationLabels.get(location.toUpperCase()) || location;
 }
+
+export function uniqueTravelLocations(values) {
+  const seen = new Set();
+  return values
+    .map(resolveTravelLocation)
+    .map((value) => value.trim())
+    .filter((value) => {
+      const normalized = value.toLowerCase();
+      if (!value || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+}
