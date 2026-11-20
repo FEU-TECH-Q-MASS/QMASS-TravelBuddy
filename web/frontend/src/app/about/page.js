@@ -9,7 +9,7 @@ const team = [
   "Michaela Marie V. Gonzales",
   "Quervie B. Manrique",
   "Shane D. Oxina",
-  "Sean Peji",
+  "Sean James C. Peji",
 ];
 export default function AboutPage() {
   return (
