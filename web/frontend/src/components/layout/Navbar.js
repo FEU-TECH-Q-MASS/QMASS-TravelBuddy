@@ -8,6 +8,7 @@ import { newTripPath } from "@/lib/tripPlannerNavigation";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
+  ["/dashboard", "My Trips"],
   ["/how-it-works", "How It Works"],
   ["/about", "About"],
   ["/contact", "Contact"],
@@ -36,7 +37,9 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
       toggle.current?.focus();
     }
   }
-  const accountAction = user ? <>{!isAdmin && <Link href="/dashboard" className="btn btn-outline hidden lg:inline-flex">Dashboard</Link>}<button type="button" onClick={onLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button></> : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
+  const accountAction = user
+    ? <button type="button" onClick={onLogout} className="btn btn-primary hidden lg:inline-flex">Log Out <Icon size={17} /></button>
+    : <Link href="/login" className="btn btn-primary hidden lg:inline-flex">Log In <Icon size={17} /></Link>;
   return (
     <header className="site-header" onKeyDown={onKeyDown}>
       <a className="skip-link" href="#main-content">
@@ -89,7 +92,9 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
               {label}
             </Link>
           ))}
-          {user ? <>{!isAdmin && <Link href="/dashboard" onClick={closeMenu} className="btn btn-outline mt-3 w-full">Dashboard</Link>}<button type="button" onClick={() => { closeMenu(); onLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button></> : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
+          {user
+            ? <button type="button" onClick={() => { closeMenu(); onLogout(); }} className="btn btn-primary mt-3 w-full">Log Out <Icon size={17} /></button>
+            : <Link href="/login" onClick={closeMenu} className="btn btn-primary mt-3 w-full">Log In <Icon size={17} /></Link>}
         </nav>
       )}
     </header>

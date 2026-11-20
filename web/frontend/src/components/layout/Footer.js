@@ -29,6 +29,7 @@ export default function Footer({ isAdmin, isTraveler, isSignedIn, loading, homeH
                 <Link href="/explore">Explore Destinations</Link>
                 <Link href="/how-it-works">How It Works</Link>
                 {isTraveler ? <Link href={newTripPath}>Plan a Trip</Link> : <Link href="/#plan-trip">Start Planning</Link>}
+                <Link href="/dashboard">My Trips</Link>
               </>
             )}
           </div>
@@ -45,9 +46,7 @@ export default function Footer({ isAdmin, isTraveler, isSignedIn, loading, homeH
               <>
                 <Link href="/about">About the Project</Link>
                 <Link href="/contact">Contact Us</Link>
-                {isSignedIn ? (
-                  <Link href="/dashboard">Dashboard</Link>
-                ) : !loading && <Link href="/login">Log In</Link>}
+                {!isSignedIn && !loading && <Link href="/login">Log In</Link>}
               </>
             )}
           </div>
