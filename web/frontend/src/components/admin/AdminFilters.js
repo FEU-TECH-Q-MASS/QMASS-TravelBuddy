@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { FiChevronDown, FiFilter, FiSearch, FiX } from "react-icons/fi";
 
-export default function AdminFilters({ filters, fields, searchLabel, searchPlaceholder, disabled, onApply }) {
+export default function AdminFilters({ filters, fields, searchLabel, searchPlaceholder, disabled, onApply, leadingControls }) {
   const [draft, setDraft] = useState(null);
   const panel = useRef(null);
   const trigger = useRef(null);
@@ -75,19 +75,26 @@ export default function AdminFilters({ filters, fields, searchLabel, searchPlace
   return (
     <form onSubmit={apply}>
       <fieldset disabled={disabled} className="relative flex min-w-0 items-center justify-between gap-2">
-        <div className="relative min-w-0 flex-1 sm:max-w-sm">
+        {leadingControls}
+        <div className={`relative min-w-0 flex-1 sm:max-w-sm ${leadingControls ? "sm:ml-auto" : ""}`}>
           <input ref={search} name="search" type="search" aria-label={searchLabel} maxLength={254}
-            defaultValue={applied.get("search") ?? ""} placeholder={searchPlaceholder} className="input h-11! pr-12!" />
-          <button type="submit" aria-label={searchLabel} className="absolute inset-y-1 right-1 grid w-9 place-items-center rounded-lg text-slate-500 hover:bg-brand-50 hover:text-brand-900">
+            defaultValue={applied.get("search") ?? ""} placeholder={searchPlaceholder}
+            className={`input h-11! pr-12! ${leadingControls ? "max-sm:pl-2! max-sm:pr-9!" : ""}`} />
+          <button type="submit" aria-label={searchLabel}
+            className={`absolute inset-y-1 right-1 grid w-9 place-items-center rounded-lg text-slate-500 hover:bg-brand-50 hover:text-brand-900 ${leadingControls ? "max-sm:w-7" : ""}`}>
             <FiSearch size={17} aria-hidden="true" />
           </button>
         </div>
         <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} aria-controls={panelId}
           onClick={() => setDraft(open ? null : {})}
-          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors hover:border-brand-700 disabled:opacity-50 ${open || active.length ? "border-brand-700 bg-brand-50 text-brand-900" : "border-slate-200 bg-white text-slate-700"}`}>
+          className={`relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors hover:border-brand-700 disabled:opacity-50 ${open || active.length ? "border-brand-700 bg-brand-50 text-brand-900" : "border-slate-200 bg-white text-slate-700"} ${leadingControls ? "max-sm:w-11 max-sm:justify-center max-sm:px-0" : ""}`}>
           <FiFilter size={16} aria-hidden="true" />
-          Filters
-          {active.length > 0 && <span className="rounded-full bg-brand-700 px-1.5 text-xs text-white">{active.length}</span>}
+          <span className={leadingControls ? "max-sm:sr-only" : undefined}>Filters</span>
+          {active.length > 0 && (
+            <span className={`rounded-full bg-brand-700 px-1.5 text-xs text-white ${leadingControls ? "max-sm:absolute max-sm:-top-1 max-sm:-right-1" : ""}`}>
+              {active.length}
+            </span>
+          )}
           <FiChevronDown size={14} aria-hidden="true" className="hidden sm:block" />
         </button>
         <dialog
