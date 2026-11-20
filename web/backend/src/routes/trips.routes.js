@@ -6,6 +6,17 @@ const { generateItinerary } = require("../services/itinerary.service");
 const { refreshTravelData } = require("../services/travel-data.service");
 const { getTravelConditions } = require("../services/travelConditionsService");
 const { z } = require("zod");
+const { findDestination } = require("../../../shared/destinations.cjs");
+
+function resolveTripLocations(input, previous) {
+  const origin = findDestination(input.origin);
+  const destination = findDestination(input.destination);
+  const startingPoint = origin?.airport || (origin?.code === "BAN" ? "BAN" : null);
+  if (!startingPoint && input.origin !== previous?.origin) return { error: "Choose a supported starting point." };
+  if (destination?.code === "PAL") return { error: "Choose a base in Palawan." };
+  if (!destination && input.destination !== previous?.destination) return { error: "Choose a supported destination." };
+  return { origin: startingPoint || input.origin, destination: destination?.code || input.destination };
+}
 
 const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
 const tripEditSchema = z.object({
@@ -35,7 +46,9 @@ router.post("/", async (req, res, next) => {
     const minimum = minimumBudgets[input.currency] || 1;
     if (!input.origin || !input.destination || !input.departure || !input.returnDate || !input.budget) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Origin, destination, dates, travelers, and budget are required." } });
     if (Number(input.budget) < minimum) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: `Budget must be at least ${minimum} ${input.currency || ""}.` } });
-    const trip = await saveTrip(enrichTrip(input, req.user.id));
+    const locations = resolveTripLocations(input);
+    if (locations.error) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: locations.error } });
+    const trip = await saveTrip(enrichTrip({ ...input, ...locations }, req.user.id));
     res.status(201).json({ trip });
   } catch (error) { next(error); }
 });
@@ -54,7 +67,9 @@ router.patch("/:id", async (req, res, next) => {
     if (!old) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
     const parsed = tripEditSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } });
-    const trip = enrichTrip({ ...parsed.data, interests: old.interests || [] }, req.user.id, old.id);
+    const locations = resolveTripLocations(parsed.data, old);
+    if (locations.error) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: locations.error } });
+    const trip = enrichTrip({ ...parsed.data, ...locations, interests: old.interests || [] }, req.user.id, old.id);
     trip.createdAt = old.createdAt;
     await saveTrip(trip);
     res.json({ trip });

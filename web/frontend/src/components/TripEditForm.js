@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { airportOptions, destinationOptions } from "@/lib/travelOptions";
+import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
+import DestinationField from "@/components/DestinationField";
+import TripTransport from "@/components/TripTransport";
 import Icon from "@/components/Icon";
 
 const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
@@ -12,6 +14,9 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
   const [error, setError] = useState("");
   const [currency, setCurrency] = useState(trip.currency);
   const [departure, setDeparture] = useState(trip.departure);
+  const [origin, setOrigin] = useState(() => findDestination(trip.origin)?.airport || trip.origin);
+  const [destination, setDestination] = useState(() => findDestination(trip.destination)?.code || trip.destination);
+  const transport = getTripTransport(origin, destination);
   const fieldId = (name) => `trip-${trip.id}-${name}`;
 
   async function save(event) {
@@ -41,15 +46,15 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
       <h4 className="flex items-center gap-2 font-semibold text-brand-900"><Icon name="edit" size={16} /> Edit trip</h4>
       <p className="mt-2 text-xs leading-5 text-slate-500">Saving rebuilds your itinerary preview, routes, and estimates using these details. Trips can be up to 14 days.</p>
       <fieldset disabled={saving} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 disabled:opacity-60">
-        {[["origin", "From", airportOptions], ["destination", "Destination", destinationOptions]].map(([name, label, options]) => (
-          <div key={name}>
-            <label htmlFor={fieldId(name)} className="field-label">{label}</label>
-            <select id={fieldId(name)} name={name} defaultValue={trip[name]} className="input" required>
-              {!options.some(([value]) => value === trip[name]) && <option value={trip[name]}>{trip[name]}</option>}
-              {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-            </select>
-          </div>
-        ))}
+        <div>
+          <label htmlFor={fieldId("origin")} className="field-label">Starting point</label>
+          <select id={fieldId("origin")} name="origin" value={origin} onChange={(event) => setOrigin(event.target.value)} className="input mt-2" required>
+            {!originOptions.some(([value]) => value === origin) && <option value={origin}>{origin}</option>}
+            {originOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </div>
+        <DestinationField id={fieldId("destination")} value={destination} onChange={setDestination} />
+        {transport && <div className="sm:col-span-2"><TripTransport origin={origin} destination={destination} /></div>}
         <div>
           <label htmlFor={fieldId("departure")} className="field-label">Departure</label>
           <input id={fieldId("departure")} name="departure" type="date" value={departure} onChange={(e) => setDeparture(e.target.value)} required className="input" />
@@ -72,9 +77,9 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
           <label htmlFor={fieldId("budget")} className="field-label">Total budget ({currency})</label>
           <input id={fieldId("budget")} name="budget" type="number" min={minimumBudgets[currency]} step="0.01" defaultValue={trip.budget} required className="input" />
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-2">
-          <input name="includeFlights" type="checkbox" defaultChecked={trip.includeFlights} /> Include flights in the budget
-        </label>
+        {transport?.route && <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-2">
+          <input name="includeFlights" type="checkbox" defaultChecked={trip.includeFlights} /> Include an airfare allowance in the budget
+        </label>}
       </fieldset>
       {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
       <div className="mt-5 flex flex-wrap gap-2">

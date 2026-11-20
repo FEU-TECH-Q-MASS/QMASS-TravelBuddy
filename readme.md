@@ -6,7 +6,7 @@ to produce a personalized itinerary.
 
 **Status: working local MVP.** The public pages include destination browsing and
 trip preference previews. The local API now supports authentication, owned saved
-trips, itinerary workspaces, demo flight and hotel offers, budgets, routes,
+trips, itinerary workspaces, transport guidance, demo hotel offers, budgets, routes,
 conditions, notifications, preferences, and admin user management. Provider data
 is clearly labeled demo data and is stored in memory; production persistence,
 password hashing, email delivery, AI generation, and live provider integrations
@@ -23,7 +23,7 @@ remain follow-up work.
 | Runtime validation | Zod |
 | Database and authentication | Supabase Auth for accounts; trip/provider persistence remains local MVP |
 | AI itinerary generation | Google Gemini API (planned) |
-| Flights and hotels | Amadeus APIs (planned) |
+| Flights and hotels | Route guidance with date-specific flight search links and demo hotel offers. Live inventory planned. |
 | Places and travel routes | Google Maps APIs (planned) |
 | Weather | OpenWeather API (planned) |
 | Public holidays | Nager.Date API (planned) |
@@ -144,7 +144,7 @@ No provider keys are required to view or interact with the public website.
 | --- | --- |
 | `/` | Landing page, trip preferences, summary preview, sample itinerary, FAQ |
 | `/explore` | Destination browsing with region, interest, and text filters |
-| `/explore/palawan` | Destination preview (also `bohol`, `cebu`, `boracay`, `banaue`) |
+| `/explore/palawan` | Palawan guide with separate Puerto Princesa, Coron, and El Nido trip bases |
 | `/how-it-works` | Planning steps, planned data inputs, sample itinerary, FAQ |
 | `/about` | Project context, principles, and Q-MASS team |
 | `/contact` | Validated contact form that sends messages to the admin inbox |
@@ -153,7 +153,7 @@ No provider keys are required to view or interact with the public website.
 | `/signup` | Signup interface with validation and password guidance |
 | `/forgot-password` | Password-recovery interface preview |
 | `/dashboard` | Signed-in dashboard and saved trips |
-| `/trips/:id` | Itinerary, flights, hotels, budget, routes, and conditions workspace |
+| `/trips/:id` | Itinerary, transport, hotels, budget, routes, and conditions workspace |
 | `/account` | Profile and travel preferences |
 | `/notifications` | In-app notification list |
 | `/admin/users` | Admin account and role management |

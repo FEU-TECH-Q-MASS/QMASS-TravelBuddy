@@ -14,7 +14,7 @@ export const faqs = [
   ],
   [
     "Can I include flights in my trip budget?",
-    "Yes. Select “Include airfare in my total budget” in the trip planner to count estimated flight costs toward the budget for your whole group.",
+    "Yes. When your route has a flight option, select “Include an airfare allowance in my budget” to set aside part of the budget for your group.",
   ],
   [
     "Can I book flights or hotels through TravelBuddy?",

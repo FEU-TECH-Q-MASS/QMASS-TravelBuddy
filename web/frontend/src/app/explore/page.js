@@ -1,14 +1,12 @@
 import DestinationExplorer from "@/components/DestinationExplorer";
 import ClosingCta from "@/components/ClosingCta";
-import { getDestinationsWithImages } from "@/lib/destinations";
+import { topLevelDestinations } from "@/lib/destinations";
 export const metadata = {
   title: "Explore destinations",
   description:
     "Find destination inspiration for your next trip, from quiet coastlines to culture-filled city streets.",
 };
-export default async function ExplorePage() {
-  const destinations = await getDestinationsWithImages();
-
+export default function ExplorePage() {
   return (
     <>
       <section className="page-heading">
@@ -25,7 +23,7 @@ export default async function ExplorePage() {
           </p>
         </div>
       </section>
-      <DestinationExplorer destinations={destinations} />
+      <DestinationExplorer destinations={topLevelDestinations} />
       <ClosingCta />
     </>
   );

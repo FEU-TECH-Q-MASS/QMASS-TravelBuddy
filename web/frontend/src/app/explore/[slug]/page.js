@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import DestinationCard from "@/components/DestinationCard";
 import TripPlanningLink from "@/components/TripPlanningLink";
-import { destinations, getDestinationsWithImages } from "@/lib/destinations";
+import { destinations, topLevelDestinations } from "@/lib/destinations";
 
 export function generateStaticParams() {
   return destinations.map(({ slug }) => ({ slug }));
@@ -20,16 +20,16 @@ export async function generateMetadata({ params }) {
 }
 export default async function DestinationPage({ params }) {
   const { slug } = await params;
-  const availableDestinations = await getDestinationsWithImages();
-  const destination = availableDestinations.find((item) => item.slug === slug);
+  const destination = topLevelDestinations.find((item) => item.slug === slug) || destinations.find((item) => item.slug === slug);
   if (!destination) notFound();
+  const credit = destination.photoCredit;
   return (
     <>
       <section className="relative min-h-115 bg-linear-to-br from-brand-700 to-brand-900">
         {destination.image && (
           <Image
             src={destination.image}
-            alt={destination.alt}
+            alt=""
             fill
             preload
             sizes="100vw"
@@ -58,60 +58,58 @@ export default async function DestinationPage({ params }) {
           </p>
         </div>
       </section>
+      {credit && (
+        <p className="page-width pt-3 text-xs text-slate-500">
+          <a href={credit.source} className="underline">Photo by {credit.author}</a>
+          {" · "}
+          {credit.licenseUrl ? <a href={credit.licenseUrl} className="underline">{credit.license}</a> : credit.license}
+          {" · Resized and converted to WebP"}
+        </p>
+      )}
       <section className="page-width grid gap-12 py-16 lg:grid-cols-[1.3fr_0.7fr]">
         <div>
-          <p className="eyebrow">A little destination inspiration</p>
-          <h2 className="section-title">Make room for a new perspective.</h2>
-          <p className="mt-6 text-lg leading-8 text-slate-500">
-            {destination.description}
-          </p>
-          <h3 className="mt-10 text-lg font-semibold">
-            A few ideas for your visit
-          </h3>
-          <ul className="mt-5 space-y-4">
-            {destination.highlights.map((text) => (
-              <li
-                key={text}
-                className="flex items-center gap-3 text-sm text-slate-600"
-              >
-                <span className="rounded-full bg-brand-50 p-1.5 text-brand-700">
-                  <Icon name="check" size={14} />
-                </span>
-                {text}
-              </li>
-            ))}
-          </ul>
-          <div className="notice mt-8">
-            <p className="font-semibold">A thoughtful planning note</p>
-            <p className="mt-1">{destination.note}</p>
-          </div>
+          <h2 className="section-title">{destination.bases ? "Choose your Palawan base" : "Places to visit"}</h2>
+          {destination.description && <p className="mt-5 text-lg leading-8 text-slate-500">{destination.description}</p>}
+          {destination.bases ? (
+            <div className="mt-7 grid gap-4 sm:grid-cols-2">
+              {destination.bases.map((base) => <DestinationCard key={base.code} destination={base} />)}
+            </div>
+          ) : (
+            <ul className="mt-5 space-y-4">
+              {destination.highlights.map((place) => (
+                <li key={place} className="flex items-center gap-3 text-sm text-slate-600">
+                  <span className="rounded-full bg-brand-50 p-1.5 text-brand-700"><Icon name="check" size={14} /></span>
+                  {place}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <aside className="h-fit rounded-2xl border border-slate-200 p-7">
           <Icon name="compass" className="text-brand-700" size={28} />
           <h2 className="mt-5 text-2xl font-semibold">
-            Picture yourself here?
+            {destination.bases ? "Plan your Palawan trip" : "Getting there"}
           </h2>
           <p className="mt-4 text-sm leading-7 text-slate-500">
-            Start with your dates, budget, and interests. We&apos;ll help you
-            preview your trip preferences.
+            {destination.airportName ? `${destination.airportName} (${destination.airport})`
+              : destination.bases ? "Confirm your stay before choosing a flight." : "Reach Banaue by road. Check buses from Manila or arrange a road transfer from your arrival gateway."}
           </p>
+          {destination.transfer && <p className="mt-2 text-sm leading-6 text-slate-500">{destination.transfer}</p>}
           <TripPlanningLink
-            destination={destination.name}
+            destination={destination.code}
             className="btn btn-primary mt-6 w-full"
           >
             Plan a trip here <Icon size={17} />
           </TripPlanningLink>
-          <p className="mt-4 text-xs leading-6 text-slate-500">
-            Editorial inspiration only. Check official travel advice and local
-            conditions. Live itinerary generation is not connected yet.
-          </p>
+          {destination.parent && <Link href="/explore/palawan" className="mt-4 inline-block text-sm font-semibold text-brand-700">See other Palawan bases</Link>}
         </aside>
       </section>
       <section className="page-width pb-20">
-        <h2 className="section-title">Keep your curiosity going.</h2>
+        <h2 className="section-title">Explore more destinations</h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {availableDestinations
+          {topLevelDestinations
             .filter((item) => item.slug !== slug)
+            .sort((first, second) => Number(second.group === destination.group) - Number(first.group === destination.group))
             .slice(0, 3)
             .map((item) => (
               <DestinationCard key={item.slug} destination={item} />

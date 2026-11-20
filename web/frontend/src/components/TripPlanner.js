@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import Icon from "@/components/Icon";
+import DestinationField from "@/components/DestinationField";
+import TripTransport from "@/components/TripTransport";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
-import { airportOptions, destinationOptions } from "@/lib/travelOptions";
+import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
 import { clearTripPreview, readTripPreview, saveTripPreview } from "@/lib/tripPlannerDraft";
 import { authHref, newTripHref, newTripPath, tripDestinationCode } from "@/lib/tripPlannerNavigation";
 import { createTripSummary, currencies, interestOptions, minimumBudgets } from "@/lib/tripPlanning";
@@ -35,6 +37,10 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
   const resultRef = useRef(null);
   const inFlight = useRef(false);
   const [draft] = useState(() => resumePreview ? readTripPreview() : null);
+  const [origin, setOrigin] = useState(draft?.origin ?? "");
+  const [selectedDestination, setSelectedDestination] = useState(destination || tripDestinationCode(draft?.destination));
+  const transport = getTripTransport(origin, selectedDestination);
+  const canBudgetForFlights = Boolean(transport?.route);
   const [errors, setErrors] = useState({});
   const [preview, setPreview] = useState(null);
   const [departure, setDeparture] = useState(draft?.departure ?? "");
@@ -49,14 +55,21 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     const form = event.currentTarget;
     const data = new FormData(form);
     const values = {
-      ...Object.fromEntries(data),
+      origin,
+      destination: data.get("destination"),
+      departure: data.get("departure"),
+      returnDate: data.get("returnDate"),
+      travelers: data.get("travelers"),
+      budget: data.get("budget"),
+      currency: data.get("currency"),
       includeFlights: data.has("includeFlights"),
       interests: data.getAll("interests"),
     };
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { summary, errors: validationErrors } = createTripSummary(values, today);
-    const fieldErrors = values.origin ? validationErrors : { origin: "Choose a starting airport.", ...validationErrors };
+    const fieldErrors = values.origin ? validationErrors : { origin: "Choose a starting point.", ...validationErrors };
+    if (selectedDestination === "PAL") fieldErrors.destination = "Choose a base in Palawan.";
     setErrors(fieldErrors);
     setNotice("");
     if (Object.keys(fieldErrors).length) {
@@ -118,20 +131,14 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
         <form onSubmit={submit} onChange={() => { setPreview(null); setNotice(""); }} noValidate aria-busy={saving}>
           <fieldset disabled={saving} className="min-w-0">
             <div className={`grid gap-4 sm:grid-cols-2 ${creating ? "lg:grid-cols-3" : "lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_0.7fr_1fr]"}`}>
-              <label className="field-label">Starting airport
-                <select className="input mt-2" name="origin" defaultValue={draft?.origin ?? ""} required {...fieldProps("origin")}>
-                  <option value="">Choose airport</option>
-                  {airportOptions.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+              <label className="field-label">Starting point
+                <select className="input mt-2" name="origin" value={origin} onChange={(event) => setOrigin(event.target.value)} required {...fieldProps("origin")}>
+                  <option value="">Choose starting point</option>
+                  {originOptions.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
                 </select>
                 {error("origin")}
               </label>
-              <label className="field-label">Destination
-                <select className="input mt-2" name="destination" defaultValue={destination || tripDestinationCode(draft?.destination)} required {...fieldProps("destination")}>
-                  <option value="">Choose destination</option>
-                  {destinationOptions.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-                </select>
-                {error("destination")}
-              </label>
+              <DestinationField value={selectedDestination} onChange={setSelectedDestination} error={errors.destination} />
               <label className="field-label">Departure
                 <input className="input mt-2" name="departure" type="date" required value={departure} onChange={(event) => setDeparture(event.target.value)} {...fieldProps("departure")} />
                 {error("departure")}
@@ -149,6 +156,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
                 {error("budget")}
               </label>
             </div>
+            {transport && !summary && <div className="mt-5"><TripTransport origin={origin} destination={selectedDestination} /></div>}
             <div className="mt-5 flex flex-col justify-between gap-5 border-t border-slate-100 pt-5 xl:flex-row xl:items-end">
               <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
                 <label className="field-label">Currency
@@ -174,18 +182,22 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
                 {saving ? "Creating trip…" : creating ? "Generate my trip" : "Preview my trip"} <Icon name="spark" size={18} />
               </button>
             </div>
-            <label className="mt-5 flex items-center gap-2 text-xs text-slate-600">
-              <input name="includeFlights" type="checkbox" defaultChecked={draft?.includeFlights} className="h-4 w-4" /> Include airfare in my total budget
-            </label>
+            {canBudgetForFlights && <label className="mt-5 flex items-center gap-2 text-xs text-slate-600">
+              <input name="includeFlights" type="checkbox" defaultChecked={draft?.includeFlights} className="h-4 w-4" /> Include an airfare allowance in my budget
+            </label>}
           </fieldset>
         </form>
         {notice && <p className="notice mt-6" role="alert">{notice}</p>}
         {summary && (
           <div ref={resultRef} tabIndex={-1} role="status" className="notice mt-6" aria-label="Your trip summary">
-            <h3 className="text-lg font-semibold">Your trip to {destinationOptions.find(([code]) => code === summary.destination)?.[1] ?? summary.destination}</h3>
+            <h3 className="text-lg font-semibold">Your trip to {findDestination(summary.destination)?.name ?? summary.destination}</h3>
             <p className="mt-2">{summary.departure} to {summary.returnDate} · {summary.days} {summary.days === 1 ? "day" : "days"}, {summary.nights} {summary.nights === 1 ? "night" : "nights"}</p>
-            <p>Total budget · {new Intl.NumberFormat("en-PH", { style: "currency", currency: summary.currency }).format(summary.budget)} · Airfare {summary.includeFlights ? "included" : "excluded"}</p>
+            <p>Total budget · {new Intl.NumberFormat("en-PH", { style: "currency", currency: summary.currency }).format(summary.budget)}{canBudgetForFlights && ` · Airfare ${summary.includeFlights ? "included" : "excluded"}`}</p>
             <p>Interests · {summary.interests.join(", ") || "Open to anything"}</p>
+            <div className="mt-4">
+              <TripTransport origin={preview.values.origin} destination={summary.destination}
+                departure={summary.departure} returnDate={summary.returnDate} showSearch />
+            </div>
             {canContinue && (
               <div className="mt-4 border-t border-cyan-200 pt-4">
                 <p className="text-xs">Sign in to review these details and save your trip.</p>

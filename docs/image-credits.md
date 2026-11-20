@@ -21,3 +21,8 @@ their own license, not the repository's GPL license.
 
 The supplied design-reference screenshots were used for visual direction only;
 they are not redistributed as website assets.
+
+The nationwide destination catalog uses Wikimedia Commons photographs, resized
+and converted to WebP. Each Explore detail page links to the original file and
+license. The catalog records the author, source, and license for each image.
+[Catalog photo credits](../web/frontend/src/lib/destinationPhotoCredits.json)

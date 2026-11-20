@@ -2,6 +2,31 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTripSummary } from "../src/lib/tripPlanning.js";
 import { authHref, newTripHref, tripAuthDestination, tripDestinationCode } from "../src/lib/tripPlannerNavigation.js";
+import { airportOptions, destinationOptions, getTripTransport, palawanOptions } from "../src/lib/travelOptions.js";
+
+test("the destination catalog groups Palawan and keeps stable saved-trip codes", () => {
+  assert.equal(airportOptions.length, 40);
+  assert.equal(destinationOptions.length, 39);
+  assert.equal(destinationOptions.some(([code]) => code === "BAN"), true);
+  assert.equal(destinationOptions.some(([code]) => code === "USU"), false);
+  assert.deepEqual(palawanOptions.map(({ code }) => code), ["PPS", "USU", "ENI"]);
+  assert.equal(tripDestinationCode("TAG"), "BOH");
+  assert.equal(tripDestinationCode("MPH"), "BOR");
+  assert.equal(newTripHref({ destination: "Palawan" }), "/trips/new?destination=PAL");
+  assert.equal(newTripHref({ destination: "Coron" }), "/trips/new?destination=USU");
+});
+
+test("transport guidance uses the starting point and actual arrival airport", () => {
+  assert.equal(getTripTransport("MNL", "BAN").mode, "road");
+  assert.deepEqual(getTripTransport("CEB", "BAN").route, ["CEB", "MNL"]);
+  assert.equal(getTripTransport("MNL", "MNL").mode, "local");
+  assert.equal(getTripTransport("CEB", "BOH").mode, "ferry");
+  assert.equal(getTripTransport("MNL", "PAL"), null);
+  assert.deepEqual(getTripTransport("MNL", "USU").route, ["CRK", "USU"]);
+  assert.deepEqual(getTripTransport("MNL", "BOH").route, ["MNL", "TAG"]);
+  assert.deepEqual(getTripTransport("MNL", "BOR").route, ["MNL", "MPH"]);
+  assert.equal(getTripTransport("MNL", "BOR").alternate, "KLO");
+});
 
 test("budget respects the currency's minor units", () => {
   assert.equal(createTripSummary({ ...input, budget: "0.001" }, "2027-01-01").summary, null);

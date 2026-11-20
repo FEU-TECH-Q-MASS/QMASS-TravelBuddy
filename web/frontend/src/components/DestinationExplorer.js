@@ -7,14 +7,20 @@ import { interestOptions } from "@/lib/tripPlanning";
 export default function DestinationExplorer({ destinations }) {
   const [interest, setInterest] = useState("All");
   const [search, setSearch] = useState("");
+  const [region, setRegion] = useState("");
+  const regions = [...new Set(destinations.map((item) => item.region))];
   const filtered = destinations.filter(
     (item) =>
       (interest === "All" || item.interests.includes(interest)) &&
-      `${item.name} ${item.country}`.toLowerCase().includes(search.trim().toLowerCase()),
+      (!region || item.region === region) &&
+      [item.name, item.country, item.region, item.airport, item.airportName,
+        ...(item.bases || []).flatMap(({ name, airport, airportName }) => [name, airport, airportName])]
+        .join(" ").toLowerCase().includes(search.trim().toLowerCase()),
   );
   function reset() {
     setInterest("All");
     setSearch("");
+    setRegion("");
   }
   return (
     <section
@@ -38,26 +44,27 @@ export default function DestinationExplorer({ destinations }) {
             ))}
           </div>
         </fieldset>
-        <div className="w-full md:w-64">
-          <label htmlFor="destination-search" className="field-label">
-            Search destinations
-          </label>
-          <div className="field-icon">
-            <Icon name="pin" size={18} />
-            <input
-              id="destination-search"
-              className="input"
-              placeholder="Search by name"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+        <div className="grid w-full gap-3 sm:grid-cols-2 md:max-w-md">
+          <div>
+            <label htmlFor="destination-region" className="field-label">Region</label>
+            <select id="destination-region" className="input" value={region} onChange={(event) => setRegion(event.target.value)}>
+              <option value="">All regions</option>
+              {regions.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="destination-search" className="field-label">Search destinations</label>
+            <div className="field-icon">
+              <Icon name="pin" size={18} />
+              <input id="destination-search" className="input" placeholder="Search by name or airport"
+                value={search} onChange={(event) => setSearch(event.target.value)} />
+            </div>
           </div>
         </div>
       </div>
       <p role="status" className="my-6 text-xs text-slate-500">
         {filtered.length}{" "}
-        {filtered.length === 1 ? "destination" : "destinations"} to spark an
-        idea
+        {filtered.length === 1 ? "destination" : "destinations"}
       </p>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((destination) => (
@@ -79,7 +86,7 @@ export default function DestinationExplorer({ destinations }) {
             A different direction, perhaps?
           </h2>
           <p className="mt-3 text-sm text-slate-500">
-            Try another interest or search term.
+            Try a different region, interest, or search term.
           </p>
           <button onClick={reset} className="btn btn-dark mt-6" type="button">
             Clear filters

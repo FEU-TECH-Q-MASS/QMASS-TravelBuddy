@@ -25,13 +25,13 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(forbidden.status, 404);
   for (const invalid of [
     { returnDate: "2026-11-29" }, { departure: "invalid" }, { returnDate: "2026-12-20" },
-    { travelers: 0 }, { budget: 1 }, { currency: "INVALID" }, { destination: " " },
+    { travelers: 0 }, { budget: 1 }, { currency: "INVALID" }, { destination: " " }, { destination: "PAL" },
   ]) {
     const response = await patch({ ...input, ...invalid });
     assert.equal(response.status, 400);
     assert.equal(trips.get(original.id).destination, "DGT");
   }
-  const response = await patch({ ...input, destination: "BAN", returnDate: "2026-12-02", budget: 30000, travelers: 2, id: "injected", ownerId: "someone-else" });
+  const response = await patch({ ...input, destination: "BAN", returnDate: "2026-12-02", budget: 30000, travelers: 2, includeFlights: true, id: "injected", ownerId: "someone-else" });
   assert.equal(response.status, 200);
   const { trip } = await response.json();
   assert.equal(trip.id, original.id);
@@ -42,6 +42,9 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(trip.budget, 30000);
   assert.equal(trip.itinerary.length, 3);
   assert.equal(trip.routes.length, 3);
+  assert.equal(trip.includeFlights, false);
+  assert.equal(trip.budgetBreakdown.flights, 0);
+  assert.deepEqual(trip.offers.flights, []);
   assert.deepEqual(trip.interests, ["Nature"]);
   const saved = await fetch(url, { headers: { "x-test-user": "owner" } });
   assert.equal((await saved.json()).trip.destination, "BAN");

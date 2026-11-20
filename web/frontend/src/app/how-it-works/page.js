@@ -36,7 +36,7 @@ const details = [
 const questions = [
   ["Do I need an account to get started?", "You can explore destinations and preview your trip preferences without an account. Sign in or create an account to save trips and return to them from your dashboard."],
   ["Can I change a saved trip?", "Yes. Open your dashboard and select the pen button on a trip. You can update its destination, dates, travelers, and budget. Saving rebuilds the itinerary preview, routes, and estimates using your new details."],
-  ["Are the prices confirmed?", "Treat itinerary costs as planning estimates. Sample flights, hotels, and example prices are labeled accordingly. Confirm current availability, fees, and prices with the provider before making travel arrangements."],
+  ["Are the prices confirmed?", "Itinerary costs, airfare allowances, and sample hotel prices are planning estimates. Check your travel dates with the provider for current availability, fees, and fares."],
   ["Can I book flights or hotels through TravelBuddy?", "TravelBuddy helps you plan and review travel options. Flight and hotel bookings and payments are not available on this website."],
   ["Will I see weather for every travel date?", "Weather depends on the provider’s forecast window and service availability. Trips outside that window may not have a forecast yet. Check again closer to departure."],
 ];

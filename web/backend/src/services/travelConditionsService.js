@@ -11,25 +11,13 @@ const {
   getPublicHolidays,
 } = require("./providers/nagerDateProvider");
 
-const destinationCoordinates = {
-  MNL: [14.5995, 120.9842],
-  CEB: [10.3157, 123.8854],
-  DGT: [9.3068, 123.3054],
-  PPS: [9.7392, 118.7353],
-  USU: [12.0000, 120.2043],
-  TAC: [11.2449, 125.0039],
-  LAO: [18.1781, 120.5315],
-  PAL: [9.8349, 118.7384],
-  BOH: [9.8500, 124.1435],
-  BOR: [11.9674, 121.9248],
-  BAN: [16.9120, 121.0600],
-};
+const { findDestination } = require("../../../shared/destinations.cjs");
 
 function getDestinationCoordinates(trip) {
   if (trip.latitude != null && trip.longitude != null) {
     return [Number(trip.latitude), Number(trip.longitude)];
   }
-  return destinationCoordinates[String(trip.destination || "").trim().toUpperCase()] || null;
+  return findDestination(trip.destination)?.coordinates || null;
 }
 
 function isValidDate(value) {

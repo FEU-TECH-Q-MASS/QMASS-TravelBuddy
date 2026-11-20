@@ -9,15 +9,9 @@ import AdminDashboard from "@/components/admin/AdminDashboard";
 import Icon from "@/components/Icon";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import TripEditForm from "@/components/TripEditForm";
-import { resolveTravelLocation } from "@/lib/travelOptions";
+import { destinationImage, resolveTravelLocation } from "@/lib/travelOptions";
 import { newTripPath } from "@/lib/tripPlannerNavigation";
 
-const destinationImages = {
-  MNL: "manila.jpg", CEB: "cebu.jpg", DGT: "dumaguete.jpg",
-  PPS: "palawan-puerto-princesa.jpg", USU: "palawan-coron-lagoon.jpg",
-  TAC: "tacloban.jpg", LAO: "laoag.jpg", PAL: "palawan.jpg",
-  BOH: "bohol.jpg", BOR: "boracay-shangri-la.jpg", BAN: "banaue.jpg",
-};
 const TRIPS_PER_PAGE = 6;
 
 function formatDate(value) {
@@ -159,7 +153,7 @@ function TravelerDashboard({ user, onLogout }) {
             {visibleTrips.map((trip) => (
               <article key={trip.id} className={`group min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md ${editingId === trip.id ? "border-brand-700 ring-2 ring-brand-700/10" : "border-slate-200"}`}>
                 <Link href={`/trips/${trip.id}`} className="relative block h-48 overflow-hidden bg-brand-900">
-                  <Image src={`/images/${destinationImages[String(trip.destination).toUpperCase()] || "philippines.jpg"}`} alt="" fill sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 420px" className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" />
+                  <Image src={destinationImage(trip.destination) || "/images/philippines.jpg"} alt="" fill sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 420px" className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" />
                   <div className="absolute inset-0 bg-linear-to-t from-brand-900/95 via-brand-900/20 to-transparent" />
                   <span className="absolute top-4 left-4 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold tracking-wider text-brand-900 uppercase">Saved journey</span>
                   <div className="absolute inset-x-5 bottom-5 text-white">

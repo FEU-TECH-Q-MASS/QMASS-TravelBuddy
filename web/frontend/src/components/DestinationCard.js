@@ -10,7 +10,7 @@ export default function DestinationCard({ destination, large = false }) {
       {destination.image && (
         <Image
           src={destination.image}
-          alt={destination.alt}
+          alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -23,7 +23,7 @@ export default function DestinationCard({ destination, large = false }) {
       <div className="relative mt-auto w-full p-6 text-white">
         <p className="mb-2 flex items-center gap-1.5 text-xs text-white/85">
           <Icon name="pin" size={13} />
-          {destination.country}
+          {destination.parent ? `Palawan · ${destination.airport}` : destination.region}
         </p>
         <div className="flex items-center justify-between gap-4">
           <h3 className="text-2xl font-semibold tracking-tight">
