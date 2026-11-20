@@ -127,24 +127,15 @@ export default async function HomePage({ searchParams }) {
         </p>
       </section>
       <section className="bg-[#f5fafb]">
-        <div className="page-width section-space grid items-center gap-12 lg:grid-cols-2">
-          <div className="relative min-h-115 overflow-hidden rounded-3xl">
+        <div className="page-width section-space grid gap-12 lg:grid-cols-2">
+          <div className="relative min-h-115 overflow-hidden rounded-3xl lg:min-h-0">
             <Image
-              src="/images/lake-journey.jpg"
+              src="/images/philippines.jpg"
               alt="Traveler taking in a peaceful alpine lake and mountain view"
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
             />
-            <div className="absolute right-5 bottom-5 left-5 rounded-2xl bg-white/95 p-5 backdrop-blur">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <Icon name="spark" className="text-brand-700" /> More than a
-                list of places.
-              </p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                A thoughtful way to bring your whole trip into view.
-              </p>
-            </div>
           </div>
           <div>
             <SectionIntro
