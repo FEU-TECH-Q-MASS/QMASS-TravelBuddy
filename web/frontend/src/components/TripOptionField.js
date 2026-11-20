@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const visibleOptions = 10;
+const normalizeSearch = (value) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 function getPlacement(field, header) {
   const bounds = field.getBoundingClientRect();
@@ -15,7 +16,7 @@ function getPlacement(field, header) {
   };
 }
 
-export default function TripOptionField({ id, label, placeholder, options, value, onChange, error }) {
+export default function TripOptionField({ id, label, placeholder, options, value, onChange, error, searchPlaceholder = "Search by name or airport code", maxResults }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [query, setQuery] = useState("");
@@ -24,11 +25,13 @@ export default function TripOptionField({ id, label, placeholder, options, value
   const input = useRef(null);
   const list = useRef(null);
   const selected = options.find(([code]) => code === value);
-  const terms = query.toLowerCase().trim().split(/\s+/);
-  const matches = options.filter((option) => {
-    const text = option.join(" ").toLowerCase();
+  const terms = normalizeSearch(query).trim().split(/\s+/);
+  const allMatches = options.filter((option) => {
+    const text = normalizeSearch(option.join(" "));
     return terms.every((term) => text.includes(term));
   });
+  const matches = maxResults === undefined ? allMatches : allMatches.slice(0, maxResults);
+  if (maxResults !== undefined && !query && selected && !matches.includes(selected)) matches.unshift(selected);
   const activeIndex = Math.min(active, matches.length - 1);
   const listId = `${id}-options`;
 
@@ -65,7 +68,7 @@ export default function TripOptionField({ id, label, placeholder, options, value
     }
   }, [activeIndex, query, open]);
 
-  function show(index = Math.max(options.findIndex(([code]) => code === value), 0)) {
+  function show(index = Math.max(matches.findIndex(([code]) => code === value), 0)) {
     setPlacement(getPlacement(field.current, document.querySelector(".site-header")));
     setQuery("");
     setActive(index);
@@ -86,7 +89,7 @@ export default function TripOptionField({ id, label, placeholder, options, value
         const direction = event.key === "ArrowDown" ? 1 : -1;
         if (open) setActive(Math.max(0, Math.min(matches.length - 1, activeIndex + direction)));
         else if (selected || direction > 0) show();
-        else show(options.length - 1);
+        else show(matches.length - 1);
         break;
       }
       case "Enter":
@@ -113,7 +116,7 @@ export default function TripOptionField({ id, label, placeholder, options, value
           aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
           aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
           className="input pr-10" value={open ? query : selected?.[1] || ""}
-          placeholder={open ? "Search by name or airport code" : placeholder}
+          placeholder={open ? searchPlaceholder : placeholder}
           onFocus={(event) => { if (!open) event.target.select(); }}
           onClick={() => { if (!open) show(); }} onBlur={() => setOpen(false)} onKeyDown={handleKey}
           onChange={(event) => {
@@ -142,6 +145,7 @@ export default function TripOptionField({ id, label, placeholder, options, value
             ))}
           </ul>
           {!matches.length && <p role="status" className="px-2 py-3 text-sm text-slate-600">No matching options.</p>}
+          {allMatches.length > matches.length && <p className="px-2 py-2 text-xs text-slate-600">Search to narrow the results.</p>}
         </div>
       )}
       {error && <span id={`${id}-error`} className="mt-2 block text-xs text-red-700">{error}</span>}

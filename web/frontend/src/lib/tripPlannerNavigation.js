@@ -1,10 +1,10 @@
-import { destinationOptions, findDestination, palawanOptions } from "./travelOptions.js";
+import { destinationOptions, findTripDestination, palawanOptions } from "./travelOptions.js";
 
 export const newTripPath = "/trips/new";
 
 export function tripDestinationCode(value) {
   if (typeof value !== "string" || !value.trim()) return "";
-  const known = findDestination(value);
+  const known = findTripDestination(value);
   if (known) return known.code;
   const name = value.trim().toLowerCase();
   return [...destinationOptions, ...palawanOptions.map(({ code, name }) => [code, name])].find(([, label]) =>

@@ -1,3 +1,5 @@
+const psgcRows = require("./psgc-destinations.json");
+
 const groups = {
   luzon: "Luzon",
   visayas: "Visayas",
@@ -68,9 +70,18 @@ function findDestination(value) {
   return byCode.get(code) || byAirport.get(code);
 }
 
+const localDestinations = psgcRows.map(([code, locality, area]) => ({
+  code, locality, area, name: `${locality}, ${area}`,
+}));
+const localByCode = new Map(localDestinations.map((place) => [place.code, place]));
+
+function findTripDestination(value) {
+  return findDestination(value) || localByCode.get(String(value || "").trim());
+}
+
 function destinationLocation(value) {
-  const place = findDestination(value);
+  const place = findTripDestination(value);
   return place ? [place.name, place.parent && "Palawan", "Philippines"].filter(Boolean).join(", ") : value;
 }
 
-module.exports = { destinations, findDestination, destinationLocation };
+module.exports = { destinations, localDestinations, findDestination, findTripDestination, destinationLocation };

@@ -22,9 +22,9 @@ remain follow-up work.
 | API | Node.js + Express 5, CommonJS |
 | Runtime validation | Zod |
 | Database and authentication | Supabase Auth for accounts; trip/provider persistence remains local MVP |
-| AI itinerary generation | Google Gemini API (planned) |
+| AI itinerary generation | Google Gemini API with server-side venue lookup |
 | Flights and hotels | Route guidance with date-specific flight search links and demo hotel offers. Live inventory planned. |
-| Places and travel routes | Google Maps APIs (planned) |
+| Places and travel routes | Google Places API (New), Routes API, and Maps Embed API |
 | Weather | OpenWeather API (planned) |
 | Public holidays | Nager.Date API (planned) |
 | Tooling | npm workspaces, ESLint, Node.js test runner, concurrently |
@@ -213,6 +213,7 @@ Add values for Preview as well if you plan to test a preview deployment.
 | `SUPABASE_URL` | The same Supabase project URL for Express |
 | `SUPABASE_SECRET_KEY` | Server-side key for that Supabase project. Store as a Secret. |
 | `GOOGLE_MAPS_SERVER_API_KEY` | Server-side key restricted to Routes API; never expose as `NEXT_PUBLIC_*` |
+| `GOOGLE_PLACES_API_KEY` | Server-side key restricted to Places API (New). Used for itinerary venue search and details. |
 | `GEMINI_API_KEY` | Optional Secret for AI-generated itineraries and travel suggestions |
 | `OPENWEATHER_API_KEY` | Optional Secret for live weather |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser key restricted to the Maps Embed API and the frontend domain |
@@ -220,6 +221,19 @@ Add values for Preview as well if you plan to test a preview deployment.
 Open `/` and `/api/v1/health` on the deployed domain to verify both services.
 Set the Supabase Auth Site URL to the production domain and allow its
 `/reset-password` redirect.
+
+The destination picker uses the Philippine Statistics Authority's
+[30 September 2026 PSGC release](https://psa.gov.ph/classification/psgc).
+The bundled city and municipality codes, names, and area labels were extracted
+from the [3Q 2026 PSGC mirror](https://github.com/rbillyjames0221/psgc-api).
+
+To generate itineraries with venue lookup, enable Places API (New) in your
+Google Cloud project and configure `GOOGLE_PLACES_API_KEY` and `GEMINI_API_KEY`
+on the backend (`web/backend/.env` for local development). Saved trips retain
+Google Place IDs. The workspace retrieves
+venue names and addresses for the selected day. When a category has no matching
+venue, the workspace displays “Venue to be confirmed.” Municipal tourism
+entries can supplement Places and include their source and access notes.
 
 Automatic price checks need a scheduler and persistent storage to run reliably on
 Vercel. The local Express process starts the timer, and price trackers and

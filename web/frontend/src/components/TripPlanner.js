@@ -9,7 +9,7 @@ import TripOptionField from "@/components/TripOptionField";
 import TripTransport from "@/components/TripTransport";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
-import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
+import { findTripDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
 import { clearTripPreview, readTripPreview, saveTripPreview } from "@/lib/tripPlannerDraft";
 import { authHref, newTripHref, newTripPath, tripDestinationCode } from "@/lib/tripPlannerNavigation";
 import { createTripSummary, interestOptions, lastTripDate, maxTripDays, maxTravelers, todayInPhilippines, tripCurrency, validateTravelers, validateBudget } from "@/lib/tripPlanning";
@@ -238,7 +238,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
         {notice && <p className="notice mt-6" role="alert">{notice}</p>}
         {summary && (
           <div ref={resultRef} tabIndex={-1} role="status" className="notice mt-6" aria-label="Your trip summary">
-            <h3 className="text-lg font-semibold">Your trip to {findDestination(summary.destination)?.name ?? summary.destination}</h3>
+            <h3 className="text-lg font-semibold">Your trip to {findTripDestination(summary.destination)?.name ?? summary.destination}</h3>
             <p className="mt-2">{summary.departure} to {summary.returnDate} · {summary.days} {summary.days === 1 ? "day" : "days"}, {summary.nights} {summary.nights === 1 ? "night" : "nights"}</p>
             <p>Total budget · {pesoFormat.format(summary.budget)}{canBudgetForFlights && ` · Airfare ${summary.includeFlights ? "included" : "excluded"}`}</p>
             <p>Interests · {summary.interests.join(", ") || "Open to anything"}</p>

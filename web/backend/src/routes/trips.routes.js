@@ -3,10 +3,11 @@ const { requireAuth } = require("../middleware/auth.middleware");
 const { enrichTrip, applyItinerary } = require("../store");
 const { saveTrip, listTrips, getTrip, deleteTrip } = require("../services/trip-repository.service");
 const { generateItinerary } = require("../services/itinerary.service");
+const { getItineraryVenueDetails } = require("../services/itinerary-venues.service");
 const { refreshTravelData } = require("../services/travel-data.service");
 const { getTravelConditions } = require("../services/travelConditionsService");
 const { z } = require("zod");
-const { findDestination } = require("../../../shared/destinations.cjs");
+const { findDestination, findTripDestination } = require("../../../shared/destinations.cjs");
 const { todayInPhilippines, validateTripDates } = require("../../../shared/tripDates.cjs");
 const { getTripTransport } = require("../../../shared/transport.cjs");
 const { currencies, tripCurrency, minimumBudgets, maxTravelers, validateTravelers, validateBudget } = require("../../../shared/tripNumbers.cjs");
@@ -36,7 +37,7 @@ function tripDateError(input, previous) {
 
 function resolveTripLocations(input, previous) {
   const origin = findDestination(input.origin);
-  const destination = findDestination(input.destination);
+  const destination = findTripDestination(input.destination);
   const startingPoint = origin?.airport || (origin?.code === "BAN" ? "BAN" : null);
   if (!startingPoint && input.origin !== previous?.origin) return { error: "Choose a supported starting point." };
   if (destination?.code === "PAL") return { error: "Choose a base in Palawan." };
@@ -80,7 +81,9 @@ router.post("/", async (req, res, next) => {
     if (validationError) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: validationError } });
     const locations = resolveTripLocations(input);
     if (locations.error) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: locations.error } });
-    const trip = await saveTrip(enrichTrip({ ...input, ...locations, travelers: travelers.value, budget: budget.value, currency: tripCurrency }, req.user.id));
+    const preview = enrichTrip({ ...input, ...locations, travelers: travelers.value, budget: budget.value, currency: tripCurrency }, req.user.id);
+    if (process.env.GEMINI_API_KEY) preview.itineraryUpdate = { reason: "schedule", status: "pending" };
+    const trip = await saveTrip(preview);
     res.status(201).json({ trip });
   } catch (error) { next(error); }
 });
@@ -90,6 +93,16 @@ router.get("/:id", async (req, res, next) => {
     const trip = await getTrip(req.params.id, req.user.id);
     if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
     res.json({ trip: trip.estimateBasis ? trip : updateTripEstimate({ ...trip }) });
+  } catch (error) { next(error); }
+});
+
+router.get("/:id/venues/:day", async (req, res, next) => {
+  try {
+    const trip = await getTrip(req.params.id, req.user.id);
+    const day = trip?.itinerary.find((item) => String(item.day) === req.params.day);
+    if (!day) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip day not found." } });
+    res.set("Cache-Control", "private, no-store");
+    res.json({ venues: await getItineraryVenueDetails(day.activities) });
   } catch (error) { next(error); }
 });
 
@@ -148,8 +161,8 @@ router.post("/:id/generate", async (req, res, next) => {
     } else {
       const result = await generateItinerary(current).catch(() => null);
       if (result?.provider === "google-gemini") {
-        const { itinerary, provider, model, generatedAt } = result;
-        const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt });
+        const { itinerary, provider, model, generatedAt, venueLookup } = result;
+        const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt, venueLookup });
         if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
         else updated = candidate;
       }
