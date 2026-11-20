@@ -19,8 +19,18 @@ export const destinationOptions = catalog.destinations
   .map(({ code, name }) => [code, name])
   .sort((first, second) => first[1].localeCompare(second[1]));
 
+function normalizePhotoDestination(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s*,\s*/g, ", ").replace(/, philippines$/, "");
+}
+
+const destinationsByPhotoLabel = new Map(catalog.destinations.flatMap((place) =>
+  [place.slug, place.name, catalog.destinationLocation(place.code)].map((label) =>
+    [normalizePhotoDestination(label), place],
+  ),
+));
+
 export function destinationImage(value) {
-  const place = findDestination(value);
+  const place = findDestination(value) || destinationsByPhotoLabel.get(normalizePhotoDestination(value));
   return place && photoCredits[place.slug] ? `/images/destinations/${place.slug}.webp` : null;
 }
 

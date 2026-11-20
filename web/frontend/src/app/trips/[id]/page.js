@@ -1,12 +1,25 @@
 "use client";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import ConditionWarning from "@/components/ConditionWarning";
-import { resolveTravelLocation, uniqueTravelLocations } from "@/lib/travelOptions";
+import { destinationImage, resolveTravelLocation, uniqueTravelLocations } from "@/lib/travelOptions";
 import TripTransport from "@/components/TripTransport";
 import RouteMap from "@/components/RouteMap";
 const tabs = ["itinerary", "transport", "hotels", "budget", "routes", "conditions"];
 const money = (trip, value) => value == null ? "Price unavailable" : `${trip.currency} ${Number(value).toLocaleString()}`;
+const tripDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function formatTripDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? value : tripDateFormatter.format(date);
+}
+
 export default function TripWorkspace({ params }) {
   const [trip, setTrip] = useState(null); const [tab, setTab] = useState("itinerary"); const [error, setError] = useState(""); const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
@@ -35,18 +48,24 @@ export default function TripWorkspace({ params }) {
   if (error && !trip) return <section className="page-width section-space"><p className="notice">{error}</p></section>; if (!trip) return <section className="page-width section-space">Loading workspace…</section>;
   const destinationLabel = resolveTravelLocation(trip.destination).replace(/, Philippines$/i, "");
   const originLabel = resolveTravelLocation(trip.origin).replace(/, Philippines$/i, "");
+  const overviewImage = destinationImage(trip.destination) || "/images/philippines.jpg";
   return (
     <section className="page-width section-space">
-      <div className="rounded-3xl bg-brand-900 p-7 text-white sm:p-10">
-        <div className="flex flex-wrap items-start justify-between gap-6">
+      <div className="relative isolate overflow-hidden rounded-3xl bg-brand-900 p-7 text-white sm:p-10">
+        <Image src={overviewImage} alt="" fill unoptimized fetchPriority="high" className="object-cover" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-brand-900/95 via-brand-900/55 to-brand-900/50 sm:bg-linear-to-r sm:from-brand-900/90 sm:via-brand-900/55 sm:to-brand-900/25" />
+        <div className="relative flex flex-wrap items-start justify-between gap-6">
           <div>
             <p className="text-xs font-bold tracking-[0.2em] text-cyan-200 uppercase">Trip workspace</p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">{destinationLabel}</h1>
-            <p className="mt-4 text-sm text-white/75">{originLabel} → {destinationLabel} · {trip.departure} to {trip.returnDate}</p>
+            <p className="mt-4 text-sm text-white/75">
+              {originLabel} → {destinationLabel} · <time dateTime={trip.departure}>{formatTripDate(trip.departure)}</time>
+              {" to "}<time dateTime={trip.returnDate}>{formatTripDate(trip.returnDate)}</time>
+            </p>
           </div>
-          <span className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span>
+          <span className="rounded-full border border-white/20 bg-brand-900/70 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span>
         </div>
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+        <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
           <Summary label="Travelers" value={trip.travelers} detail="in your group" />
           <Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" />
           <Summary label="Estimate" value={money(trip, trip.budgetBreakdown.estimatedTotal)} detail={trip.budgetBreakdown.remaining < 0 ? "over budget" : "within budget"} />
@@ -85,7 +104,15 @@ export default function TripWorkspace({ params }) {
     </section>
   );
 }
-function Summary({ label, value, detail }) { return <div className="rounded-2xl bg-white/10 p-4"><p className="text-xs text-white/60">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-white/60">{detail}</p></div>; }
+function Summary({ label, value, detail }) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-brand-900/65 p-4 backdrop-blur-sm">
+      <p className="text-xs text-white/80">{label}</p>
+      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-xs text-white/80">{detail}</p>
+    </div>
+  );
+}
 
 //Iteninerary block - had to do a quick refactor, it was hurting my head.
 function Itinerary({ trip }) {

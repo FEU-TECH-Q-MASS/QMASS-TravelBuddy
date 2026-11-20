@@ -12,7 +12,7 @@ import TripEditForm from "@/components/TripEditForm";
 import { destinationImage, resolveTravelLocation } from "@/lib/travelOptions";
 import { newTripPath } from "@/lib/tripPlannerNavigation";
 
-const TRIPS_PER_PAGE = 6;
+const TRIPS_PER_PAGE = 4;
 
 function formatDate(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });

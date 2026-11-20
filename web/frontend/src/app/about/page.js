@@ -40,9 +40,8 @@ export default function AboutPage() {
       <section className="page-width section-space grid items-center gap-12 lg:grid-cols-2">
         <div className="relative min-h-110 overflow-hidden rounded-3xl">
           <Image
-            src="/images/alpine-lake.jpg"
+            src="/images/palawan-el-nido.jpg"
             loading="eager"
-            alt="A turquoise lake surrounded by forest and alpine mountains"
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"

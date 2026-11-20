@@ -6,8 +6,8 @@ export default function AuthShell({ children }) {
     <section className="page-width grid gap-8 py-9 sm:py-12 lg:grid-cols-[1fr_1fr]">
       <div className="relative hidden min-h-165 overflow-hidden rounded-3xl bg-brand-900 lg:block">
         <Image
-          src="/images/alpine-lake.jpg"
-          alt="A peaceful mountain lake waiting to be explored"
+          src="/images/palawan-kayangan.jpg"
+          alt="Outrigger boats below limestone cliffs near Kayangan Lake in Coron, Palawan"
           fill
           priority
           sizes="50vw"
