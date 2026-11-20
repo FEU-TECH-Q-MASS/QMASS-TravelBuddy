@@ -4,12 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, clearToken, getToken } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/Icon";
+import TripEditForm from "@/components/TripEditForm";
+import { resolveTravelLocation } from "@/lib/travelOptions";
 
 export default function DashboardPage() {
   const [trips, setTrips] = useState([]);
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -34,6 +39,7 @@ export default function DashboardPage() {
     if (!window.confirm(`Permanently delete your trip to ${trip.destination}?`)) return;
     setDeletingId(trip.id);
     setError("");
+    setSuccess("");
     try {
       await api(`/trips/${trip.id}`, { method: "DELETE" });
       setTrips((current) => current.filter((item) => item.id !== trip.id));
@@ -59,6 +65,7 @@ export default function DashboardPage() {
       </div>
 
       {error && <p className="notice mt-8">{error}</p>}
+      {success && <p role="status" className="notice mt-8">{success}</p>}
 
       <div className="mt-12 grid gap-5 md:grid-cols-3">
         <Link href="/account" className="rounded-2xl border p-6 hover:border-brand-700">
@@ -90,21 +97,22 @@ export default function DashboardPage() {
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {trips.map((trip) => (
-              <article key={trip.id} className="rounded-2xl border p-6 hover:border-brand-700">
+              <article key={trip.id} className="self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors hover:border-brand-700">
                 <Link href={`/trips/${trip.id}`} className="block">
                   <p className="text-xs font-semibold uppercase text-brand-700">{trip.departure} · {trip.returnDate}</p>
-                  <h3 className="mt-2 text-xl font-semibold">{trip.destination}</h3>
-                  <p className="mt-2 text-sm text-slate-500">{trip.itinerary.length} days · {trip.travelers} travelers · {trip.currency} {trip.budget.toLocaleString()}</p>
-                  <p className="mt-4 text-sm font-semibold text-brand-700">Open workspace →</p>
+                  <h3 className="mt-2 text-xl font-semibold">{resolveTravelLocation(trip.destination)}</h3>
+                  <p className="mt-2 text-sm text-slate-500">{trip.itinerary.length} {trip.itinerary.length === 1 ? "day" : "days"} · {trip.travelers} {trip.travelers === 1 ? "traveler" : "travelers"} · {trip.currency} {trip.budget.toLocaleString()}</p>
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => deleteTrip(trip)}
-                  disabled={deletingId === trip.id}
-                  className="mt-5 text-sm font-semibold text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {deletingId === trip.id ? "Deleting…" : "Delete permanently"}
-                </button>
+                {editingId !== trip.id && <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5">
+                  <Link href={`/trips/${trip.id}`} className="btn btn-dark mr-auto">Open workspace <Icon name="arrow" size={16} /></Link>
+                  <button type="button" onClick={() => { setEditingId(trip.id); setSuccess(""); }} disabled={Boolean(deletingId) || Boolean(editingId)} aria-label={`Edit trip to ${trip.destination}`} title="Edit trip" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-brand-700 transition-colors hover:border-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"><Icon name="edit" size={17} /> Edit</button>
+                  <button type="button" onClick={() => deleteTrip(trip)} disabled={Boolean(deletingId) || Boolean(editingId)} aria-label={`Permanently delete trip to ${trip.destination}`} title="Delete permanently" className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"><Icon name="trash" size={18} /><span className="sr-only">{deletingId === trip.id ? "Deleting…" : "Delete permanently"}</span></button>
+                </div>}
+                {editingId === trip.id && <TripEditForm trip={trip} onCancel={() => setEditingId("")} onSave={(updated) => {
+                  setTrips((current) => current.map((item) => item.id === updated.id ? updated : item));
+                  setEditingId("");
+                  setSuccess("Trip updated. Your itinerary preview and estimates have been rebuilt.");
+                }} />}
               </article>
             ))}
           </div>

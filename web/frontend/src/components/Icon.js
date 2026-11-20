@@ -20,6 +20,8 @@ import {
   FiFeather,
   FiPlus,
   FiMinus,
+  FiEdit2,
+  FiTrash2,
 } from "react-icons/fi";
 
 const icons = {
@@ -44,6 +46,8 @@ const icons = {
   leaf: FiFeather,
   plus: FiPlus,
   minus: FiMinus,
+  edit: FiEdit2,
+  trash: FiTrash2,
 };
 
 // Keep all interface icons consistent through the React Icons Feather set.

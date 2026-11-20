@@ -4,8 +4,21 @@ const { enrichTrip, applyItinerary } = require("../store");
 const { saveTrip, listTrips, getTrip, deleteTrip } = require("../services/trip-repository.service");
 const { generateItinerary } = require("../services/itinerary.service");
 const { refreshTravelData } = require("../services/travel-data.service");
+const { z } = require("zod");
 
 const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
+const tripEditSchema = z.object({
+  origin: z.string().trim().min(1).max(120),
+  destination: z.string().trim().min(1).max(120),
+  departure: z.iso.date(),
+  returnDate: z.iso.date(),
+  travelers: z.coerce.number().int().min(1).max(50),
+  currency: z.enum(["PHP", "USD", "EUR", "JPY"]),
+  budget: z.coerce.number().finite().positive(),
+  includeFlights: z.boolean(),
+}).refine((input) => input.returnDate >= input.departure, "Return date must be on or after departure.")
+  .refine((input) => (Date.parse(input.returnDate) - Date.parse(input.departure)) / 86400000 < 14, "Trips can be up to 14 days.")
+  .refine((input) => input.budget >= minimumBudgets[input.currency], "Budget is below the minimum for this currency.");
 
 router.get("/", (req, res, next) => {
   if (!req.headers.authorization) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Endpoint not found." } });
@@ -30,6 +43,19 @@ router.get("/:id", async (req, res, next) => {
   try {
     const trip = await getTrip(req.params.id, req.user.id);
     if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
+    res.json({ trip });
+  } catch (error) { next(error); }
+});
+
+router.patch("/:id", async (req, res, next) => {
+  try {
+    const old = await getTrip(req.params.id, req.user.id);
+    if (!old) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
+    const parsed = tripEditSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } });
+    const trip = enrichTrip({ ...parsed.data, interests: old.interests || [] }, req.user.id, old.id);
+    trip.createdAt = old.createdAt;
+    await saveTrip(trip);
     res.json({ trip });
   } catch (error) { next(error); }
 });

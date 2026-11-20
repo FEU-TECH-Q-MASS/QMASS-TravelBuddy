@@ -48,8 +48,8 @@ function makeItinerary(input) {
     ],
   }));
 }
-function enrichTrip(input, ownerId) {
-  const idValue = crypto.randomUUID();
+function enrichTrip(input, ownerId, tripId = crypto.randomUUID()) {
+  const idValue = tripId;
   const itinerary = makeItinerary(input);
   const nights = Math.max(0, itinerary.length - 1);
   const currency = input.currency || "PHP";
