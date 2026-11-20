@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import ConditionWarning from "@/components/ConditionWarning";
 import { resolveTravelLocation, uniqueTravelLocations } from "@/lib/travelOptions";
@@ -8,10 +8,31 @@ const tabs = ["itinerary", "flights", "hotels", "budget", "routes", "conditions"
 const money = (trip, value) => value == null ? "Price unavailable" : `${trip.currency} ${Number(value).toLocaleString()}`;
 export default function TripWorkspace({ params }) {
   const [trip, setTrip] = useState(null); const [tab, setTab] = useState("itinerary"); const [error, setError] = useState(""); const [refreshing, setRefreshing] = useState(false);
+  const refreshInFlight = useRef(false);
   useEffect(() => { Promise.resolve(params).then(({ id }) => api(`/trips/${id}`).then(({ trip: value }) => setTrip(value)).catch((e) => setError(e.message))); }, [params]);
-  async function refreshData() { setRefreshing(true); setError(""); try { const { trip: value } = await api(`/trips/${trip.id}/refresh-data`, { method: "POST" }); setTrip(value); } catch (e) { setError(e.message); } finally { setRefreshing(false); } }
+  async function refreshData(kind = "all") {
+    if (!trip || refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    setRefreshing(true);
+    setError("");
+    try {
+      const endpoint = kind === "conditions" ? "refresh-conditions" : "refresh-data";
+      const { trip: value } = await api(`/trips/${trip.id}/${endpoint}`, { method: "POST" });
+      setTrip((current) => current?.id === value.id ? value : current);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      refreshInFlight.current = false;
+      setRefreshing(false);
+    }
+  }
+  function selectTab(value) {
+    if (value === tab) return;
+    setTab(value);
+    if (value === "conditions") void refreshData("conditions");
+  }
   if (error && !trip) return <section className="page-width section-space"><p className="notice">{error}</p></section>; if (!trip) return <section className="page-width section-space">Loading workspace…</section>;
-  return <section className="page-width section-space"><div className="rounded-3xl bg-brand-900 p-7 text-white sm:p-10"><div className="flex flex-wrap items-start justify-between gap-6"><div><p className="text-xs font-bold tracking-[0.2em] text-cyan-200 uppercase">Trip workspace</p><h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">{trip.destination}</h1><p className="mt-4 text-sm text-white/75">{trip.origin} → {trip.destination} · {trip.departure} to {trip.returnDate}</p></div><span className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span></div><div className="mt-8 grid gap-3 sm:grid-cols-3"><Summary label="Travelers" value={trip.travelers} detail="in your group" /><Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" /><Summary label="Estimate" value={money(trip, trip.budgetBreakdown.estimatedTotal)} detail={trip.budgetBreakdown.remaining < 0 ? "over budget" : "within budget"} /></div></div><div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{tabs.map((value) => <button key={value} onClick={() => setTab(value)} className="filter-pill" aria-pressed={tab === value}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div><div className="flex gap-2"><button className="btn btn-outline" onClick={refreshData} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh travel data"}</button></div></div>{error && <p className="notice mt-5">{error}</p>}<div className="mt-8">{tab === "itinerary" && <Itinerary trip={trip} />}{tab === "flights" && <OfferList title="Flight options" items={trip.offers.flights} render={(item) => <><h3 className="text-lg font-semibold">{item.route}</h3><p className="mt-2 text-sm text-slate-500">{item.airline} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.fare)}</strong><span className="text-sm text-slate-500">{item.baggage}</span></div></>} />}{tab === "hotels" && <OfferList title="Hotel options" items={trip.offers.hotels} render={(item) => <><h3 className="text-lg font-semibold">{item.name}</h3><p className="mt-2 text-sm text-slate-500">{item.location} · capacity {item.guests} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.totalStay)} total</strong><span className="text-sm text-slate-500">{money(trip, item.nightlyRate)} per night</span></div></>} />}{tab === "budget" && <Budget trip={trip} />}{tab === "routes" && <Routes trip={trip} />}{tab === "conditions" && <Conditions trip={trip} />}</div></section>;
+  return <section className="page-width section-space"><div className="rounded-3xl bg-brand-900 p-7 text-white sm:p-10"><div className="flex flex-wrap items-start justify-between gap-6"><div><p className="text-xs font-bold tracking-[0.2em] text-cyan-200 uppercase">Trip workspace</p><h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">{trip.destination}</h1><p className="mt-4 text-sm text-white/75">{trip.origin} → {trip.destination} · {trip.departure} to {trip.returnDate}</p></div><span className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span></div><div className="mt-8 grid gap-3 sm:grid-cols-3"><Summary label="Travelers" value={trip.travelers} detail="in your group" /><Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" /><Summary label="Estimate" value={money(trip, trip.budgetBreakdown.estimatedTotal)} detail={trip.budgetBreakdown.remaining < 0 ? "over budget" : "within budget"} /></div></div><div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{tabs.map((value) => <button key={value} onClick={() => selectTab(value)} className="filter-pill" aria-pressed={tab === value}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div><div className="flex gap-2"><button className="btn btn-outline" onClick={() => refreshData()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh travel data"}</button></div></div>{error && <p className="notice mt-5">{error}</p>}<div className="mt-8">{tab === "itinerary" && <Itinerary trip={trip} />}{tab === "flights" && <OfferList title="Flight options" items={trip.offers.flights} render={(item) => <><h3 className="text-lg font-semibold">{item.route}</h3><p className="mt-2 text-sm text-slate-500">{item.airline} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.fare)}</strong><span className="text-sm text-slate-500">{item.baggage}</span></div></>} />}{tab === "hotels" && <OfferList title="Hotel options" items={trip.offers.hotels} render={(item) => <><h3 className="text-lg font-semibold">{item.name}</h3><p className="mt-2 text-sm text-slate-500">{item.location} · capacity {item.guests} · {item.availability}</p><div className="mt-4 flex justify-between"><strong>{money(trip, item.totalStay)} total</strong><span className="text-sm text-slate-500">{money(trip, item.nightlyRate)} per night</span></div></>} />}{tab === "budget" && <Budget trip={trip} />}{tab === "routes" && <Routes trip={trip} />}{tab === "conditions" && <div aria-busy={refreshing}>{refreshing && <p role="status" className="notice mb-5">Updating weather and travel conditions…</p>}<Conditions trip={trip} /></div>}</div></section>;
 }
 function Summary({ label, value, detail }) { return <div className="rounded-2xl bg-white/10 p-4"><p className="text-xs text-white/60">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-white/60">{detail}</p></div>; }
 
