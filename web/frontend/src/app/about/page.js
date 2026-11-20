@@ -3,13 +3,14 @@ import Link from "next/link";
 import SectionIntro from "@/components/SectionIntro";
 import ClosingCta from "@/components/ClosingCta";
 import Icon from "@/components/Icon";
+import DeveloperCard from "@/components/DeveloperCard";
 export const metadata = { title: "About us" };
 const team = [
-  "Alexa Mhel V. Gagan",
-  "Michaela Marie V. Gonzales",
-  "Quervie B. Manrique",
-  "Shane D. Oxina",
-  "Sean James C. Peji",
+  { name: "Alexa Mhel V. Gagan", photo: "Alexa-picture.png", initials: "AG" },
+  { name: "Michaela Marie V. Gonzales", photo: "Mica-picture.png", initials: "MG" },
+  { name: "Quervie B. Manrique", photo: "Quervie-picture.png", initials: "QM" },
+  { name: "Shane D. Oxina", photo: "Shane-picture.png", initials: "SO" },
+  { name: "Sean James C. Peji", photo: "Sean-picture.png", initials: "SP" },
 ];
 export default function AboutPage() {
   return (
@@ -122,16 +123,11 @@ export default function AboutPage() {
             </>
           }
         ></SectionIntro>
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {team.map((name, index) => (
-            <li
-              key={name}
-              className="flex items-center gap-4 rounded-xl border border-slate-200 p-5"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">
-                0{index + 1}
-              </span>
-              <span className="text-sm font-semibold">{name}</span>
+        <p className="mt-5 max-w-xl text-sm leading-7 text-slate-500">Five developers, one shared destination: making travel planning feel a little easier.</p>
+        <ul className="mt-10 flex flex-wrap justify-center gap-6">
+          {team.map((member) => (
+            <li key={member.name} className="w-full min-w-0 sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]">
+              <DeveloperCard {...member} photo={`/images/team/${member.photo}`} />
             </li>
           ))}
         </ul>
