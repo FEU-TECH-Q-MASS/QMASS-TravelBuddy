@@ -16,6 +16,11 @@ const passwordRules = [
   ],
 ];
 
+function confirmPasswordError(password, confirmation) {
+  if (!confirmation) return "Confirm your password.";
+  if (password !== confirmation) return "Your passwords must match.";
+}
+
 export default function AuthForm({ mode }) {
   const signup = mode === "signup";
   const recovery = mode === "recovery";
@@ -24,6 +29,9 @@ export default function AuthForm({ mode }) {
     confirmPassword: false,
   });
   const [password, setPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmationChecked, setConfirmationChecked] = useState(false);
+  const showPasswordGuidance = signup && passwordFocused && password.length > 0;
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,10 +51,11 @@ export default function AuthForm({ mode }) {
         nextErrors.firstName = "Enter your first name.";
       if (!values.lastName.trim())
         nextErrors.lastName = "Enter your last name.";
-      if (!passwordRules.every(([, rule]) => rule(values.password)))
-        nextErrors.password = "Your password must meet the requirements below.";
-      if (!values.confirmPassword || values.password !== values.confirmPassword)
-        nextErrors.confirmPassword = "Your passwords must match.";
+      if (values.password && !passwordRules.every(([, rule]) => rule(values.password)))
+        nextErrors.password = "Your password must meet all three requirements.";
+      const confirmationError = confirmPasswordError(values.password, values.confirmPassword);
+      if (confirmationError) nextErrors.confirmPassword = confirmationError;
+      setConfirmationChecked(true);
     }
     setErrors(nextErrors);
     setNotice("");
@@ -79,13 +88,43 @@ export default function AuthForm({ mode }) {
       form.elements.namedItem("password").value = "";
       setPassword("");
     }
-    if (signup) form.elements.namedItem("confirmPassword").value = "";
+    if (signup) {
+      form.elements.namedItem("confirmPassword").value = "";
+      setConfirmationChecked(false);
+    }
     setVisible({ password: false, confirmPassword: false });
   }
+
+  function validateConfirmation(form) {
+    const error = confirmPasswordError(
+      form.elements.namedItem("password").value,
+      form.elements.namedItem("confirmPassword").value,
+    );
+    setErrors((previous) => ({ ...previous, confirmPassword: error }));
+  }
+
+  function passwordFieldHasFocus(form) {
+    const focused = form.ownerDocument.activeElement;
+    return focused?.closest("[data-password-field]")?.closest("form") === form;
+  }
+
   function field(name, label, type = "text", autoComplete) {
     const isPassword = type === "password";
+    const signupPasswordField = signup && isPassword;
     return (
-      <div>
+      <div
+        data-password-field={signupPasswordField ? "" : undefined}
+        onFocus={signup && name === "password" ? () => setPasswordFocused(true) : undefined}
+        onBlur={signupPasswordField ? (event) => {
+          if (event.currentTarget.contains(event.relatedTarget)) return;
+          if (name === "password") {
+            setPasswordFocused(false);
+          } else {
+            setConfirmationChecked(true);
+            validateConfirmation(event.target.form);
+          }
+        } : undefined}
+      >
         <label htmlFor={name} className="field-label">
           {label}
         </label>
@@ -103,19 +142,17 @@ export default function AuthForm({ mode }) {
             aria-describedby={
               [
                 errors[name] ? `${name}-error` : "",
-                signup && name === "password" ? "password-guidance" : "",
+                showPasswordGuidance && name === "password" ? "password-guidance" : "",
               ]
                 .filter(Boolean)
                 .join(" ") || undefined
             }
-            onChange={
-              name === "password" && signup
-                ? (event) => {
-                    setPassword(event.target.value);
-                    setNotice("");
-                  }
-                : () => setNotice("")
-            }
+            onChange={(event) => {
+              setNotice("");
+              if (!signupPasswordField) return;
+              if (name === "password") setPassword(event.target.value);
+              if (confirmationChecked) validateConfirmation(event.target.form);
+            }}
           />
           {isPassword && (
             <button
@@ -172,7 +209,20 @@ export default function AuthForm({ mode }) {
           </>
         )}
       </p>
-      <form onSubmit={submit} noValidate className="mt-7 space-y-5">
+      <form
+        onSubmit={submit}
+        onMouseDown={signup ? (event) => {
+          // Keep the clicked control in place until password blur can no longer interrupt its click.
+          if (event.button === 0 && event.target.closest("button, label") && passwordFieldHasFocus(event.currentTarget)) {
+            event.preventDefault();
+          }
+        } : undefined}
+        onClick={signup ? (event) => {
+          if (passwordFieldHasFocus(event.currentTarget)) event.target.closest("button")?.focus();
+        } : undefined}
+        noValidate
+        className="mt-7 space-y-5"
+      >
         {signup && (
           <div className="grid gap-4 sm:grid-cols-2">
             {field("firstName", "First name", "text", "given-name")}
@@ -187,33 +237,27 @@ export default function AuthForm({ mode }) {
             "password",
             signup ? "new-password" : "current-password",
           )}
-        {signup && (
-          <>
-            <ul
-              id="password-guidance"
-              className="space-y-2 text-xs text-slate-500"
-            >
-              {passwordRules.map(([label, rule]) => (
+        {showPasswordGuidance && (
+          <ul
+            id="password-guidance"
+            className="space-y-2 text-xs text-slate-500"
+          >
+            {passwordRules.map(([label, rule]) => {
+              const met = rule(password);
+              return (
                 <li
                   key={label}
-                  className={`flex items-center gap-2 ${password && rule(password) ? "text-brand-700" : ""}`}
+                  className={`flex items-center gap-2 ${met ? "text-brand-700" : ""}`}
                 >
-                  <Icon
-                    name={password && rule(password) ? "check" : "close"}
-                    size={13}
-                  />
+                  <Icon name={met ? "check" : "close"} size={13} />
                   {label}
                 </li>
-              ))}
-            </ul>
-            {field(
-              "confirmPassword",
-              "Confirm password",
-              "password",
-              "new-password",
-            )}
-          </>
+              );
+            })}
+          </ul>
         )}
+        {signup &&
+          field("confirmPassword", "Confirm password", "password", "new-password")}
         {!signup && !recovery && (
           <div className="text-right">
             <Link href="/forgot-password" className="text-link text-xs!">
