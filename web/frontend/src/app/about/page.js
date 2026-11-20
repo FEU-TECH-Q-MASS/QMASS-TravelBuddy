@@ -4,13 +4,18 @@ import SectionIntro from "@/components/SectionIntro";
 import ClosingCta from "@/components/ClosingCta";
 import Icon from "@/components/Icon";
 import DeveloperCard from "@/components/DeveloperCard";
+import alexaPhoto from "../../../public/images/team/Alexa-picture.png";
+import micaPhoto from "../../../public/images/team/Mica-picture.png";
+import querviePhoto from "../../../public/images/team/Quervie-picture.png";
+import shanePhoto from "../../../public/images/team/Shane-picture.png";
+import seanPhoto from "../../../public/images/team/Sean-picture.png";
 export const metadata = { title: "About us" };
 const team = [
-  { name: "Alexa Mhel V. Gagan", photo: "Alexa-picture.png", initials: "AG" },
-  { name: "Michaela Marie V. Gonzales", photo: "Mica-picture.png", initials: "MG" },
-  { name: "Quervie B. Manrique", photo: "Quervie-picture.png", initials: "QM" },
-  { name: "Shane D. Oxina", photo: "Shane-picture.png", initials: "SO" },
-  { name: "Sean James C. Peji", photo: "Sean-picture.png", initials: "SP" },
+  { name: "Alexa Mhel V. Gagan", photo: alexaPhoto, initials: "AG" },
+  { name: "Michaela Marie V. Gonzales", photo: micaPhoto, initials: "MG" },
+  { name: "Quervie B. Manrique", photo: querviePhoto, initials: "QM" },
+  { name: "Shane D. Oxina", photo: shanePhoto, initials: "SO" },
+  { name: "Sean James C. Peji", photo: seanPhoto, initials: "SP" },
 ];
 export default function AboutPage() {
   return (
@@ -127,7 +132,7 @@ export default function AboutPage() {
         <ul className="mt-10 flex flex-wrap justify-center gap-6">
           {team.map((member) => (
             <li key={member.name} className="w-full min-w-0 sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]">
-              <DeveloperCard {...member} photo={`/images/team/${member.photo}`} />
+              <DeveloperCard key={member.photo.src} {...member} />
             </li>
           ))}
         </ul>
