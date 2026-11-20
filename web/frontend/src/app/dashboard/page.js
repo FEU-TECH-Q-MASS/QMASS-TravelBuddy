@@ -17,11 +17,11 @@ export default function DashboardPage() {
       router.push("/login");
       return;
     }
-    Promise.all([api("/auth/me"), api("/trips")])
-      .then(([me, data]) => {
-        setUser(me.user);
-        setTrips(data.trips);
-      })
+    api("/me")
+      .then(({ user }) => setUser(user))
+      .catch((e) => setError(e.message));
+    api("/trips")
+      .then(({ trips }) => setTrips(trips))
       .catch((e) => setError(e.message));
   }, [router]);
 
@@ -49,7 +49,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="eyebrow">Your travel desk</p>
-          <h1 className="page-title">Welcome{user ? `, ${user.name}` : " back"}.</h1>
+          <h1 className="page-title">Welcome{user ? `, ${user.display_name}` : " back"}.</h1>
           <p className="mt-4 text-slate-500">Create, reopen, and refine your saved journeys.</p>
         </div>
         <div className="flex gap-3">
