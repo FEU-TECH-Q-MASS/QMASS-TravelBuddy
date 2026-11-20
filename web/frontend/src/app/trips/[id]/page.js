@@ -49,6 +49,7 @@ export default function TripWorkspace({ params }) {
   const destinationLabel = resolveTravelLocation(trip.destination).replace(/, Philippines$/i, "");
   const originLabel = resolveTravelLocation(trip.origin).replace(/, Philippines$/i, "");
   const overviewImage = destinationImage(trip.destination) || "/images/philippines.jpg";
+  const { estimatedTotal, remaining } = trip.budgetBreakdown;
   return (
     <section className="page-width section-space">
       <div className="relative isolate overflow-hidden rounded-3xl bg-brand-900 p-7 text-white sm:p-10">
@@ -68,7 +69,7 @@ export default function TripWorkspace({ params }) {
         <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
           <Summary label="Travelers" value={trip.travelers} detail="in your group" />
           <Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" />
-          <Summary label="Estimate" value={money(trip, trip.budgetBreakdown.estimatedTotal)} detail={trip.budgetBreakdown.remaining < 0 ? "over budget" : "within budget"} />
+          <Summary label="Estimate" value={money(trip, estimatedTotal)} detail={remaining < 0 ? `${money(trip, Math.abs(remaining))} over budget` : "within budget"} />
         </div>
       </div>
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4">

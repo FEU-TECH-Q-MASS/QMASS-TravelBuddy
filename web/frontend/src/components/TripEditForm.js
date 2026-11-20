@@ -7,13 +7,12 @@ import DestinationField from "@/components/DestinationField";
 import TripOptionField from "@/components/TripOptionField";
 import TripTransport from "@/components/TripTransport";
 import Icon from "@/components/Icon";
-
-const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
+import { minimumBudgets, tripCurrency } from "@/lib/tripPlanning";
 
 export default function TripEditForm({ trip, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [currency, setCurrency] = useState(trip.currency);
+  const currency = trip.currency || tripCurrency;
   const [departure, setDeparture] = useState(trip.departure);
   const [origin, setOrigin] = useState(() => findDestination(trip.origin)?.airport || trip.origin);
   const [destination, setDestination] = useState(() => findDestination(trip.destination)?.code || trip.destination);
@@ -33,7 +32,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
           origin, destination,
           departure: data.get("departure"), returnDate: data.get("returnDate"),
           travelers: Number(data.get("travelers")), budget: Number(data.get("budget")),
-          currency: data.get("currency"), includeFlights: data.get("includeFlights") === "on",
+          includeFlights: data.get("includeFlights") === "on",
         }),
       });
       onSave(updated);
@@ -65,12 +64,6 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
           <input id={fieldId("travelers")} name="travelers" type="number" min="1" max="50" step="1" defaultValue={trip.travelers} required className="input" />
         </div>
         <div>
-          <label htmlFor={fieldId("currency")} className="field-label">Currency</label>
-          <select id={fieldId("currency")} name="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className="input">
-            {Object.keys(minimumBudgets).map((value) => <option key={value}>{value}</option>)}
-          </select>
-        </div>
-        <div className="sm:col-span-2">
           <label htmlFor={fieldId("budget")} className="field-label">Total budget ({currency})</label>
           <input id={fieldId("budget")} name="budget" type="number" min={minimumBudgets[currency]} step="0.01" defaultValue={trip.budget} required className="input" />
         </div>

@@ -208,7 +208,7 @@ function TravelerDashboard({ user, onLogout }) {
           <p className="text-[10px] font-bold tracking-[0.16em] text-slate-400 uppercase">Make it your own</p>
           <h2 className="mt-2 text-lg font-semibold text-brand-900">Your travel essentials</h2>
           <div className="mt-4 space-y-1">
-            <DashboardShortcut href="/account" icon="settings" title="Preferences" description="Profile, currency & interests" />
+            <DashboardShortcut href="/account" icon="settings" title="Preferences" description="Manage your profile" />
             <DashboardShortcut href="/notifications" icon="bell" title="Notifications" description="Your latest travel updates" />
           </div>
           <button type="button" onClick={onLogout} className="mt-4 w-full border-t border-slate-100 pt-4 text-left text-xs font-medium text-slate-500 transition-colors hover:text-brand-700">Log out of your account <span aria-hidden="true">↗</span></button>

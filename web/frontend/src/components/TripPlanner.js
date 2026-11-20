@@ -12,7 +12,11 @@ import { api } from "@/lib/api";
 import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
 import { clearTripPreview, readTripPreview, saveTripPreview } from "@/lib/tripPlannerDraft";
 import { authHref, newTripHref, newTripPath, tripDestinationCode } from "@/lib/tripPlannerNavigation";
-import { createTripSummary, currencies, interestOptions, minimumBudgets } from "@/lib/tripPlanning";
+import { createTripSummary, interestOptions, maxTravelers, tripCurrency, validateTravelers, validateBudget } from "@/lib/tripPlanning";
+
+const budgetAmountFormat = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 2 });
+const pesoFormat = new Intl.NumberFormat("en-PH", { style: "currency", currency: tripCurrency });
+const defaultBudget = 10000;
 
 export default function TripPlanner({ initialDestination = "", mode = "preview", resumePreview = false }) {
   const { user, profile } = useSiteAuth();
@@ -45,7 +49,15 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
   const [errors, setErrors] = useState({});
   const [preview, setPreview] = useState(null);
   const [departure, setDeparture] = useState(draft?.departure ?? "");
-  const [currency, setCurrency] = useState(currencies.includes(draft?.currency) ? draft.currency : "PHP");
+  const needsPesoBudget = Boolean(draft?.currency && draft.currency !== tripCurrency);
+  const [travelers, setTravelers] = useState(String(draft?.travelers ?? 1));
+  const [budget, setBudget] = useState(() => {
+    if (needsPesoBudget) return "";
+    const initial = draft?.budget ?? defaultBudget;
+    const { value } = validateBudget(initial);
+    return value === undefined ? String(initial) : budgetAmountFormat.format(value);
+  });
+  const [checkedNumbers, setCheckedNumbers] = useState({});
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +74,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
       returnDate: data.get("returnDate"),
       travelers: data.get("travelers"),
       budget: data.get("budget"),
-      currency: data.get("currency"),
+      currency: tripCurrency,
       includeFlights: data.has("includeFlights"),
       interests: data.getAll("interests"),
     };
@@ -72,6 +84,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     const fieldErrors = values.origin ? validationErrors : { origin: "Choose a starting point.", ...validationErrors };
     if (selectedDestination === "PAL") fieldErrors.destination = "Choose a base in Palawan.";
     setErrors(fieldErrors);
+    setCheckedNumbers({ travelers: true, budget: true });
     setNotice("");
     if (Object.keys(fieldErrors).length) {
       const firstField = Object.keys(fieldErrors)[0];
@@ -80,8 +93,9 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
       return;
     }
 
+    const validatedValues = { ...values, travelers: summary.travelers, budget: summary.budget };
     if (!creating) {
-      setPreview({ summary, values });
+      setPreview({ summary, values: validatedValues });
       requestAnimationFrame(() => resultRef.current?.focus());
       return;
     }
@@ -89,7 +103,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     inFlight.current = true;
     setSaving(true);
     try {
-      const { trip } = await api("/trips", { method: "POST", body: JSON.stringify(values) });
+      const { trip } = await api("/trips", { method: "POST", body: JSON.stringify(validatedValues) });
       if (resumePreview) clearTripPreview();
       router.push(`/trips/${trip.id}`);
     } catch (error) {
@@ -120,9 +134,24 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     return { "aria-invalid": Boolean(errors[name]), "aria-describedby": errors[name] ? `${name}-error` : undefined };
   }
 
-  const minimum = minimumBudgets[currency];
-  const budgetFormat = new Intl.NumberFormat("en-PH", { style: "currency", currency, maximumFractionDigits: 0 });
+  const travelerCount = /^\d+$/.test(travelers.trim()) ? Number(travelers) : null;
+  const travelersError = checkedNumbers.travelers && validateTravelers(travelers).error;
+  const budgetError = checkedNumbers.budget && validateBudget(budget).error;
   const summary = preview?.summary;
+
+  function stepTravelers(direction) {
+    const next = travelerCount === null ? 1 : Math.min(maxTravelers, Math.max(1, travelerCount + direction));
+    setTravelers(String(next));
+    setCheckedNumbers((current) => ({ ...current, travelers: true }));
+    clearPreview();
+  }
+
+  function checkBudget(event) {
+    setCheckedNumbers((current) => ({ ...current, budget: true }));
+    const amount = event.currentTarget.value;
+    const { value } = validateBudget(amount);
+    setBudget(value === undefined ? amount : budgetAmountFormat.format(value));
+  }
 
   return (
     <section id="plan-trip" aria-labelledby="planner-title" className={creating ? "mt-8" : "page-width relative z-10 -mt-16 scroll-mt-28"}>
@@ -138,7 +167,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
         )}
         <form onSubmit={submit} onChange={clearPreview} noValidate aria-busy={saving}>
           <fieldset disabled={saving} className="min-w-0">
-            <div className={`grid gap-4 sm:grid-cols-2 ${creating ? "lg:grid-cols-3" : "lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_0.7fr_1fr]"}`}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <TripOptionField id="origin" label="Starting point" placeholder="Choose starting point" options={originOptions}
                 value={origin} onChange={(code) => { setOrigin(code); clearPreview(); }} error={errors.origin} />
               <DestinationField value={selectedDestination} onChange={(code) => { setSelectedDestination(code); clearPreview(); }} error={errors.destination} />
@@ -150,37 +179,53 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
                 <input className="input mt-2" name="returnDate" type="date" defaultValue={draft?.returnDate ?? ""} min={departure || undefined} required {...fieldProps("returnDate")} />
                 {error("returnDate")}
               </label>
-              <label className="field-label">Travelers
-                <input className="input mt-2" name="travelers" type="number" min="1" max="99" defaultValue={draft?.travelers ?? 1} required {...fieldProps("travelers")} />
-                {error("travelers")}
-              </label>
-              <label className="field-label">Budget
-                <input className="input mt-2" name="budget" type="number" min={minimum} max="1000000000" step={currency === "JPY" ? "1" : "0.01"} defaultValue={draft?.budget ?? 10000} required {...fieldProps("budget")} />
-                {error("budget")}
-              </label>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <div className="min-w-0">
+                <label htmlFor="travelers" className="field-label">Travelers</label>
+                <div className={`flex min-h-12 items-stretch rounded-xl border bg-white focus-within:border-brand-700 ${travelersError ? "border-red-500" : "border-slate-200"}`}>
+                  <button type="button" aria-label="Remove a traveler" disabled={travelerCount === 1} onClick={() => stepTravelers(-1)}
+                    className="w-12 shrink-0 rounded-l-xl border-r border-slate-200 text-lg font-semibold text-brand-900 hover:bg-brand-50 disabled:text-slate-400 disabled:hover:bg-transparent">−</button>
+                  <input id="travelers" name="travelers" type="text" inputMode="numeric" required value={travelers}
+                    onChange={(event) => setTravelers(event.target.value)}
+                    onBlur={() => setCheckedNumbers((current) => ({ ...current, travelers: true }))}
+                    aria-invalid={Boolean(travelersError)} aria-describedby={travelersError ? "travelers-hint travelers-error" : "travelers-hint"}
+                    className="min-w-0 flex-1 px-2 text-center text-sm font-semibold text-slate-900 outline-offset-[-2px]" />
+                  <button type="button" aria-label="Add a traveler" disabled={travelerCount === maxTravelers} onClick={() => stepTravelers(1)}
+                    className="w-12 shrink-0 rounded-r-xl border-l border-slate-200 text-lg font-semibold text-brand-900 hover:bg-brand-50 disabled:text-slate-400 disabled:hover:bg-transparent">+</button>
+                </div>
+                <p id="travelers-hint" className="mt-1.5 text-xs text-slate-500">1–{maxTravelers} travelers</p>
+                {travelersError && <p id="travelers-error" className="mt-1 text-xs text-red-700">{travelersError}</p>}
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="budget" className="field-label">Total trip budget</label>
+                <div className={`flex min-h-12 items-stretch rounded-xl border bg-white focus-within:border-brand-700 ${budgetError ? "border-red-500" : "border-slate-200"}`}>
+                  <span aria-hidden="true" className="grid w-12 shrink-0 place-items-center rounded-l-xl border-r border-slate-200 bg-slate-50 text-sm font-semibold text-brand-900">₱</span>
+                  <input id="budget" name="budget" type="text" inputMode="decimal"
+                    required value={budget} onChange={(event) => setBudget(event.target.value)} onBlur={checkBudget}
+                    aria-invalid={Boolean(budgetError)} aria-describedby={budgetError ? "budget-hint budget-error" : "budget-hint"}
+                    className="min-w-0 flex-1 rounded-r-xl px-4 py-3 text-sm text-slate-900 outline-offset-[-2px]" />
+                </div>
+                <p id="budget-hint" className="mt-1.5 text-xs text-slate-500">
+                  Total for the whole group, in Philippine pesos.
+                  {needsPesoBudget && !budget && " Enter a peso amount for this draft."}
+                </p>
+                {budgetError && <p id="budget-error" className="mt-1 text-xs text-red-700">{budgetError}</p>}
+              </div>
             </div>
             {transport && !summary && <div className="mt-5"><TripTransport origin={origin} destination={selectedDestination} /></div>}
             <div className="mt-5 flex flex-col justify-between gap-5 border-t border-slate-100 pt-5 xl:flex-row xl:items-end">
-              <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
-                <label className="field-label">Currency
-                  <select className="input mt-2" name="currency" value={currency} onChange={(event) => setCurrency(event.target.value)} {...fieldProps("currency")}>
-                    {currencies.map((value) => <option key={value}>{value}</option>)}
-                  </select>
-                  <span className="mt-1 block text-xs font-normal text-slate-500">Minimum {budgetFormat.format(minimum)}</span>
-                  {error("currency")}
-                </label>
-                <fieldset>
-                  <legend className="field-label">Interests <span className="font-normal text-slate-500">(optional)</span></legend>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {interestOptions.map((value) => (
-                      <label key={value} className="cursor-pointer">
-                        <input type="checkbox" name="interests" value={value} defaultChecked={draft?.interests.includes(value)} className="peer sr-only" />
-                        <span className="block rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 peer-checked:border-brand-700 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700">{value}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              </div>
+              <fieldset>
+                <legend className="field-label">Interests <span className="font-normal text-slate-500">(optional)</span></legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {interestOptions.map((value) => (
+                    <label key={value} className="cursor-pointer">
+                      <input type="checkbox" name="interests" value={value} defaultChecked={draft?.interests.includes(value)} className="peer sr-only" />
+                      <span className="block rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 peer-checked:border-brand-700 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-700">{value}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <button className="btn btn-primary shrink-0 disabled:opacity-60" type="submit">
                 {saving ? "Creating trip…" : creating ? "Generate my trip" : "Preview my trip"} <Icon name="spark" size={18} />
               </button>
@@ -195,7 +240,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
           <div ref={resultRef} tabIndex={-1} role="status" className="notice mt-6" aria-label="Your trip summary">
             <h3 className="text-lg font-semibold">Your trip to {findDestination(summary.destination)?.name ?? summary.destination}</h3>
             <p className="mt-2">{summary.departure} to {summary.returnDate} · {summary.days} {summary.days === 1 ? "day" : "days"}, {summary.nights} {summary.nights === 1 ? "night" : "nights"}</p>
-            <p>Total budget · {new Intl.NumberFormat("en-PH", { style: "currency", currency: summary.currency }).format(summary.budget)}{canBudgetForFlights && ` · Airfare ${summary.includeFlights ? "included" : "excluded"}`}</p>
+            <p>Total budget · {pesoFormat.format(summary.budget)}{canBudgetForFlights && ` · Airfare ${summary.includeFlights ? "included" : "excluded"}`}</p>
             <p>Interests · {summary.interests.join(", ") || "Open to anything"}</p>
             <div className="mt-4">
               <TripTransport origin={preview.values.origin} destination={summary.destination}

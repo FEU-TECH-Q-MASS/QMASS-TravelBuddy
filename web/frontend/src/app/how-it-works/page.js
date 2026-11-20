@@ -16,7 +16,7 @@ const steps = [
   },
   {
     icon: "wallet", title: "Give your plans a little shape.",
-    text: "Set a total budget and currency, and choose whether to include airfare. Preview your preferences before saving a trip.",
+    text: "Set a total budget in Philippine pesos and choose whether to include airfare. Preview your plans before saving a trip.",
     tags: ["A clear budget", "Your travel group", "A free preview"],
   },
   {

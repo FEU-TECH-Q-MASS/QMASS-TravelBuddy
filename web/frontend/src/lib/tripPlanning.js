@@ -1,3 +1,7 @@
+import tripNumbers from "../../../shared/tripNumbers.cjs";
+
+export const { tripCurrency, minimumBudgets, maxTravelers, validateTravelers, validateBudget } = tripNumbers;
+
 export const interestOptions = [
   "Nature",
   "Culture",
@@ -5,8 +9,6 @@ export const interestOptions = [
   "Beach",
   "Adventure",
 ];
-export const currencies = ["PHP", "USD", "EUR", "JPY"];
-export const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
 
 function parseDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -22,28 +24,16 @@ export function createTripSummary(input, today) {
   const destination = String(input.destination || "").trim();
   const start = parseDate(input.departure || "");
   const end = parseDate(input.returnDate || "");
-  const travelers = Number(input.travelers);
-  const budget = Number(input.budget);
   if (!destination || destination.length > 100)
     errors.destination = "Enter a destination using 1–100 characters.";
   if (start === null || input.departure < today)
     errors.departure = "Choose today or a future departure date.";
   if (end === null || (start !== null && end < start))
     errors.returnDate = "Return date must be on or after departure.";
-  if (!Number.isInteger(travelers) || travelers < 1 || travelers > 99)
-    errors.travelers = "Enter 1–99 travelers.";
-  const minimumBudget = minimumBudgets[input.currency] || 1;
-  if (!Number.isFinite(budget) || budget < minimumBudget || budget > 1000000000)
-    errors.budget = `Enter a budget of at least ${minimumBudget.toLocaleString()} ${input.currency || ""}.`;
-  else {
-    const minorUnitFactor = input.currency === "JPY" ? 1 : 100;
-    if (Math.abs(budget * minorUnitFactor - Math.round(budget * minorUnitFactor)) > 0.000001)
-      errors.budget = input.currency === "JPY"
-        ? "Enter a whole-yen budget."
-        : "Use no more than two decimal places for your budget.";
-  }
-  if (!currencies.includes(input.currency))
-    errors.currency = "Choose a supported currency.";
+  const travelers = validateTravelers(input.travelers);
+  if (travelers.error) errors.travelers = travelers.error;
+  const budget = validateBudget(input.budget, input.currency);
+  if (budget.error) errors.budget = budget.error;
   if (Object.keys(errors).length) return { errors, summary: null };
   const nights = Math.round((end - start) / 86400000);
   return {
@@ -52,9 +42,9 @@ export function createTripSummary(input, today) {
       destination,
       departure: input.departure,
       returnDate: input.returnDate,
-      travelers,
-      budget,
-      currency: input.currency,
+      travelers: travelers.value,
+      budget: budget.value,
+      currency: tripCurrency,
       nights,
       days: nights + 1,
       includeFlights: Boolean(input.includeFlights),
