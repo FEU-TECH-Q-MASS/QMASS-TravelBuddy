@@ -184,15 +184,43 @@ in `src/components/layout`.
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Backend `.env` | Server-side token verification and profile authorization |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Frontend `.env.local` | Browser Supabase Auth client |
 
-Next.js forwards `/api/*` to Express, preserving `/api/v1`. Rebuild the frontend
-after changing `BACKEND_URL` for production. If the backend port changes, update
-this URL too. Browser code should call relative `/api/v1/...` paths.
+For local development, Next.js forwards `/api/*` to Express, preserving `/api/v1`.
+If the local backend port changes, update `BACKEND_URL` too. Browser code should
+call relative `/api/v1/...` paths.
 
 Keep `.env` files and provider secrets out of Git and browser bundles. Never put
 Gemini, Amadeus, server Maps, or Supabase service-role keys in `NEXT_PUBLIC_*`.
 The local API includes `/api/v1/me`, `/api/v1/trips`, `/api/v1/notifications`,
 and `/api/v1/admin` in addition to health. Supabase Auth verifies bearer tokens;
 profile roles and active status are checked server-side before protected access.
+
+## Deploy to one Vercel project
+
+Import the repository as `qmass-travelbuddy`. Use the repository root as the
+Root Directory, select **Services** as the Framework Preset, and use **Node.js
+24.x**. The root `vercel.json` routes `/api/*` to Express and other requests to
+Next.js on the same domain. Leave `BACKEND_URL` unset for this deployment.
+
+Add the following in the project's **Environment Variables** for Production.
+Add values for Preview as well if you plan to test a preview deployment.
+
+| Setting | Value |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL for browser authentication |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key for that Supabase project |
+| `SUPABASE_URL` | The same Supabase project URL for Express |
+| `SUPABASE_SECRET_KEY` | Server-side key for that Supabase project. Store as a Secret. |
+| `GEMINI_API_KEY` | Optional Secret for AI-generated itineraries and travel suggestions |
+| `OPENWEATHER_API_KEY` | Optional Secret for live weather |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser key for live route maps |
+
+Open `/` and `/api/v1/health` on the deployed domain to verify both services.
+Set the Supabase Auth Site URL to the production domain and allow its
+`/reset-password` redirect.
+
+Automatic price checks need a scheduler and persistent storage to run reliably on
+Vercel. The local Express process starts the timer, and price trackers and
+notifications currently live in memory.
 
 ## Development conventions
 
