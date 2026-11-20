@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createTripSummary } from "../src/lib/tripPlanning.js";
 import { authHref, newTripHref, tripAuthDestination, tripDestinationCode } from "../src/lib/tripPlannerNavigation.js";
 import { airportOptions, destinationOptions, getTripTransport, palawanOptions } from "../src/lib/travelOptions.js";
+import { topLevelDestinations } from "../src/lib/destinations.js";
 
 test("the destination catalog groups Palawan and keeps stable saved-trip codes", () => {
   assert.equal(airportOptions.length, 40);
@@ -14,6 +15,12 @@ test("the destination catalog groups Palawan and keeps stable saved-trip codes",
   assert.equal(tripDestinationCode("MPH"), "BOR");
   assert.equal(newTripHref({ destination: "Palawan" }), "/trips/new?destination=PAL");
   assert.equal(newTripHref({ destination: "Coron" }), "/trips/new?destination=USU");
+  assert.deepEqual([...new Set(topLevelDestinations.map(({ region }) => region))], ["Luzon", "Visayas", "Mindanao"]);
+  for (const code of ["BSO", "DRP", "TBH", "PAL"]) {
+    assert.equal(topLevelDestinations.find((place) => place.code === code)?.region, "Luzon");
+  }
+  assert.deepEqual(topLevelDestinations.find((place) => place.slug === "palawan")?.bases.map(({ code }) => code), ["PPS", "USU", "ENI"]);
+  assert.ok(palawanOptions.every(({ region }) => region === "Luzon"));
 });
 
 test("transport guidance uses the starting point and actual arrival airport", () => {

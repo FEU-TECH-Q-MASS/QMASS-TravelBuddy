@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import DestinationField from "@/components/DestinationField";
+import TripOptionField from "@/components/TripOptionField";
 import TripTransport from "@/components/TripTransport";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
@@ -56,7 +57,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     const data = new FormData(form);
     const values = {
       origin,
-      destination: data.get("destination"),
+      destination: selectedDestination === "PAL" ? "" : selectedDestination,
       departure: data.get("departure"),
       returnDate: data.get("returnDate"),
       travelers: data.get("travelers"),
@@ -73,7 +74,9 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     setErrors(fieldErrors);
     setNotice("");
     if (Object.keys(fieldErrors).length) {
-      form.elements.namedItem(Object.keys(fieldErrors)[0])?.focus();
+      const firstField = Object.keys(fieldErrors)[0];
+      const fieldId = firstField === "destination" && selectedDestination === "PAL" ? "destination-base" : firstField;
+      (form.querySelector(`#${fieldId}`) || form.elements.namedItem(firstField))?.focus();
       return;
     }
 
@@ -108,6 +111,11 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
     return errors[name] && <span id={`${name}-error`} className="mt-2 block text-xs text-red-700">{errors[name]}</span>;
   }
 
+  function clearPreview() {
+    setPreview(null);
+    setNotice("");
+  }
+
   function fieldProps(name) {
     return { "aria-invalid": Boolean(errors[name]), "aria-describedby": errors[name] ? `${name}-error` : undefined };
   }
@@ -128,17 +136,12 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
         {resumePreview && !draft && (
           <p role="status" className="notice mb-5">Your preview is no longer available in this tab. Enter your trip details below.</p>
         )}
-        <form onSubmit={submit} onChange={() => { setPreview(null); setNotice(""); }} noValidate aria-busy={saving}>
+        <form onSubmit={submit} onChange={clearPreview} noValidate aria-busy={saving}>
           <fieldset disabled={saving} className="min-w-0">
             <div className={`grid gap-4 sm:grid-cols-2 ${creating ? "lg:grid-cols-3" : "lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_0.7fr_1fr]"}`}>
-              <label className="field-label">Starting point
-                <select className="input mt-2" name="origin" value={origin} onChange={(event) => setOrigin(event.target.value)} required {...fieldProps("origin")}>
-                  <option value="">Choose starting point</option>
-                  {originOptions.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-                </select>
-                {error("origin")}
-              </label>
-              <DestinationField value={selectedDestination} onChange={setSelectedDestination} error={errors.destination} />
+              <TripOptionField id="origin" label="Starting point" placeholder="Choose starting point" options={originOptions}
+                value={origin} onChange={(code) => { setOrigin(code); clearPreview(); }} error={errors.origin} />
+              <DestinationField value={selectedDestination} onChange={(code) => { setSelectedDestination(code); clearPreview(); }} error={errors.destination} />
               <label className="field-label">Departure
                 <input className="input mt-2" name="departure" type="date" required value={departure} onChange={(event) => setDeparture(event.target.value)} {...fieldProps("departure")} />
                 {error("departure")}

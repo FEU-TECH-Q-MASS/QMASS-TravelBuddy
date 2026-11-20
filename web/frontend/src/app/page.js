@@ -9,7 +9,11 @@ import Steps from "@/components/Steps";
 import SampleItinerary from "@/components/SampleItinerary";
 import Faq from "@/components/Faq";
 import ClosingCta from "@/components/ClosingCta";
-import { destinations } from "@/lib/destinations";
+import { topLevelDestinations } from "@/lib/destinations";
+
+const popularDestinations = ["boracay", "cebu", "bohol", "palawan", "siargao"]
+  .map((slug) => topLevelDestinations.find((destination) => destination.slug === slug))
+  .filter(Boolean);
 
 export default async function HomePage({ searchParams }) {
   const query = await searchParams;
@@ -94,7 +98,7 @@ export default async function HomePage({ searchParams }) {
           </Link>
         </div>
         <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {destinations.slice(0, 5).map((destination) => (
+          {popularDestinations.map((destination) => (
             <DestinationCard key={destination.slug} destination={destination} />
           ))}
           <Link

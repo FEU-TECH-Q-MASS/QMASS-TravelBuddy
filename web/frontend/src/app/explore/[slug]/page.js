@@ -48,7 +48,7 @@ export default async function DestinationPage({ params }) {
             All destinations
           </Link>
           <p className="mt-16 text-xs font-semibold tracking-widest text-white/80 uppercase">
-            {destination.country} · {destination.region}
+            {destination.country} · {destination.region}{destination.parent && " · Palawan"}
           </p>
           <h1 className="mt-3 text-5xl font-semibold tracking-tight text-white sm:text-7xl">
             {destination.name}

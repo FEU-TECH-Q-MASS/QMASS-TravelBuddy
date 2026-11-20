@@ -1,8 +1,7 @@
 const groups = {
-  luzon: "Luzon, Batanes and Bicol",
-  palawan: "Palawan",
-  visayas: "Visayas and Romblon",
-  mindanao: "Mindanao and nearby islands",
+  luzon: "Luzon",
+  visayas: "Visayas",
+  mindanao: "Mindanao",
 };
 
 const entries = [
@@ -19,11 +18,12 @@ const entries = [
   ["WNP", "naga", "Naga and Pili", "luzon", "Naga Airport", [13.622, 123.194], "Culture, Nature, Adventure", "Pilgrimage sites and mountain trails", "Peñafrancia Basilica Minore|Naga Metropolitan Cathedral|Malabsay Falls"],
   ["TUG", "tuguegarao", "Tuguegarao", "luzon", "Tuguegarao Airport", [17.613, 121.728], "Culture, Food, Adventure", "Cathedral streets and limestone caves", "Tuguegarao Cathedral|Callao Cave|Tuguegarao City Public Market"],
   ["VRC", "catanduanes", "Virac, Catanduanes", "luzon", "Virac Airport", [13.584, 124.232], "Nature, Beach, Adventure", "Pacific headlands and surf breaks", "Virac Cathedral|Maribina Falls|Binurong Point"],
+  ["TBH", "tablas", "Tablas, Romblon", "luzon", "Tugdan Airport", [12.388, 122.038], "Beach, Nature", "Quiet coves and clear water", "Binucot Beach|Aglicay Beach|Looc Bay Marine Refuge and Sanctuary"],
 
-  ["PAL", "palawan", "Palawan", "palawan", null, null, "Nature, Beach, Adventure", "Limestone coasts, lagoons and island days", []],
-  ["PPS", "puerto-princesa", "Puerto Princesa", "palawan", "Puerto Princesa International Airport", [9.7392, 118.7353], "Nature, Adventure", "An underground river and sheltered bays", "Puerto Princesa Subterranean River National Park|Puerto Princesa City Baywalk Park|Honda Bay", "PAL", "PPS", "Allow a road transfer to Sabang for the Underground River."],
-  ["USU", "coron", "Coron", "palawan", "Busuanga Airport", [12.000, 120.204], "Beach, Nature, Adventure", "Lagoons between limestone cliffs", "Coron Town Plaza|Kayangan Lake|Maquinit Hot Spring", "PAL", "USU", "Fly into Busuanga and continue by road to Coron town. Island tours start by boat."],
-  ["ENI", "el-nido", "El Nido", "palawan", "Lio Airport", [11.179, 119.390], "Beach, Nature, Adventure", "Lagoons and limestone islands", "El Nido Town Proper|Lio Beach|Big Lagoon, El Nido", "PAL", "ENI", "Fly into Lio Airport for El Nido or travel overland from Puerto Princesa."],
+  ["PAL", "palawan", "Palawan", "luzon", null, null, "Nature, Beach, Adventure", "Limestone coasts, lagoons and island days", []],
+  ["PPS", "puerto-princesa", "Puerto Princesa", "luzon", "Puerto Princesa International Airport", [9.7392, 118.7353], "Nature, Adventure", "An underground river and sheltered bays", "Puerto Princesa Subterranean River National Park|Puerto Princesa City Baywalk Park|Honda Bay", "PAL", "PPS", "Allow a road transfer to Sabang for the Underground River."],
+  ["USU", "coron", "Coron", "luzon", "Busuanga Airport", [12.000, 120.204], "Beach, Nature, Adventure", "Lagoons between limestone cliffs", "Coron Town Plaza|Kayangan Lake|Maquinit Hot Spring", "PAL", "USU", "Fly into Busuanga and continue by road to Coron town. Island tours start by boat."],
+  ["ENI", "el-nido", "El Nido", "luzon", "Lio Airport", [11.179, 119.390], "Beach, Nature, Adventure", "Lagoons and limestone islands", "El Nido Town Proper|Lio Beach|Big Lagoon, El Nido", "PAL", "ENI", "Fly into Lio Airport for El Nido or travel overland from Puerto Princesa."],
 
   ["BCD", "bacolod", "Bacolod and Silay", "visayas", "Bacolod–Silay Airport", [10.677, 122.951], "Food, Culture", "Sugar heritage and chicken inasal", "The Ruins, Talisay|Negros Museum|Manokan Country, Bacolod"],
   ["BOH", "bohol", "Bohol", "visayas", "Bohol–Panglao International Airport", [9.850, 124.144], "Nature, Culture, Beach", "Chocolate Hills and Panglao beaches", "Alona Beach|Chocolate Hills Complex|Loboc River Cruise", null, "TAG"],
@@ -37,7 +37,6 @@ const entries = [
   ["KLO", "kalibo", "Kalibo", "visayas", "Kalibo International Airport", [11.706, 122.365], "Culture, Nature", "Mangrove boardwalks and Aklan heritage", "Bakhawan Eco-Park|Pastrana Park|Museo it Akean"],
   ["RXS", "roxas", "Roxas, Capiz", "visayas", "Roxas Airport", [11.585, 122.751], "Food, Culture, Beach", "Seafood along the Capiz coast", "Baybay Beach, Roxas City|Roxas City Bridge|Panublion Museum"],
   ["IQR", "siquijor", "Siquijor", "visayas", "Siquijor Airport", [9.214, 123.515], "Beach, Nature, Adventure", "Spring-fed falls and quiet beaches", "Cambugahay Falls|Paliton Beach|Lazi Church"],
-  ["TBH", "tablas", "Tablas, Romblon", "visayas", "Tugdan Airport", [12.388, 122.038], "Beach, Nature", "Quiet coves and clear water", "Binucot Beach|Aglicay Beach|Looc Bay Marine Refuge and Sanctuary"],
   ["TAC", "tacloban", "Tacloban", "visayas", "Daniel Z. Romualdez Airport", [11.245, 125.004], "Culture, Nature", "Waterfront views and Leyte history", "San Juanico Bridge|Santo Niño Shrine and Heritage Museum|MacArthur Landing Memorial National Park"],
 
   ["BXU", "butuan", "Butuan", "mindanao", "Bancasi Airport", [8.949, 125.543], "Culture, Nature", "Ancient boats and the Agusan River", "Balangay Shrine Museum|Butuan National Museum|Bood Promontory Eco Park"],

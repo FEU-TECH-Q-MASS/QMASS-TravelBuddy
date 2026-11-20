@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
 import DestinationField from "@/components/DestinationField";
+import TripOptionField from "@/components/TripOptionField";
 import TripTransport from "@/components/TripTransport";
 import Icon from "@/components/Icon";
 
@@ -18,6 +19,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
   const [destination, setDestination] = useState(() => findDestination(trip.destination)?.code || trip.destination);
   const transport = getTripTransport(origin, destination);
   const fieldId = (name) => `trip-${trip.id}-${name}`;
+  const startingPoints = origin && !originOptions.some(([code]) => code === origin) ? [[origin, origin], ...originOptions] : originOptions;
 
   async function save(event) {
     event.preventDefault();
@@ -28,7 +30,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
       const { trip: updated } = await api(`/trips/${trip.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          origin: data.get("origin"), destination: data.get("destination"),
+          origin, destination,
           departure: data.get("departure"), returnDate: data.get("returnDate"),
           travelers: Number(data.get("travelers")), budget: Number(data.get("budget")),
           currency: data.get("currency"), includeFlights: data.get("includeFlights") === "on",
@@ -46,13 +48,8 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
       <h4 className="flex items-center gap-2 font-semibold text-brand-900"><Icon name="edit" size={16} /> Edit trip</h4>
       <p className="mt-2 text-xs leading-5 text-slate-500">Saving rebuilds your itinerary preview, routes, and estimates using these details. Trips can be up to 14 days.</p>
       <fieldset disabled={saving} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 disabled:opacity-60">
-        <div>
-          <label htmlFor={fieldId("origin")} className="field-label">Starting point</label>
-          <select id={fieldId("origin")} name="origin" value={origin} onChange={(event) => setOrigin(event.target.value)} className="input mt-2" required>
-            {!originOptions.some(([value]) => value === origin) && <option value={origin}>{origin}</option>}
-            {originOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </div>
+        <TripOptionField id={fieldId("origin")} label="Starting point" placeholder="Choose starting point"
+          options={startingPoints} value={origin} onChange={setOrigin} />
         <DestinationField id={fieldId("destination")} value={destination} onChange={setDestination} />
         {transport && <div className="sm:col-span-2"><TripTransport origin={origin} destination={destination} /></div>}
         <div>

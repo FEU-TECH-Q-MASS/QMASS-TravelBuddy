@@ -7,12 +7,12 @@ import { interestOptions } from "@/lib/tripPlanning";
 export default function DestinationExplorer({ destinations }) {
   const [interest, setInterest] = useState("All");
   const [search, setSearch] = useState("");
-  const [region, setRegion] = useState("");
-  const regions = [...new Set(destinations.map((item) => item.region))];
+  const [islandGroup, setIslandGroup] = useState("");
+  const islandGroups = [...new Set(destinations.map((item) => item.region))];
   const filtered = destinations.filter(
     (item) =>
       (interest === "All" || item.interests.includes(interest)) &&
-      (!region || item.region === region) &&
+      (!islandGroup || item.region === islandGroup) &&
       [item.name, item.country, item.region, item.airport, item.airportName,
         ...(item.bases || []).flatMap(({ name, airport, airportName }) => [name, airport, airportName])]
         .join(" ").toLowerCase().includes(search.trim().toLowerCase()),
@@ -20,7 +20,7 @@ export default function DestinationExplorer({ destinations }) {
   function reset() {
     setInterest("All");
     setSearch("");
-    setRegion("");
+    setIslandGroup("");
   }
   return (
     <section
@@ -46,10 +46,10 @@ export default function DestinationExplorer({ destinations }) {
         </fieldset>
         <div className="grid w-full gap-3 sm:grid-cols-2 md:max-w-md">
           <div>
-            <label htmlFor="destination-region" className="field-label">Region</label>
-            <select id="destination-region" className="input" value={region} onChange={(event) => setRegion(event.target.value)}>
-              <option value="">All regions</option>
-              {regions.map((item) => <option key={item}>{item}</option>)}
+            <label htmlFor="destination-island-group" className="field-label">Island group</label>
+            <select id="destination-island-group" className="input" value={islandGroup} onChange={(event) => setIslandGroup(event.target.value)}>
+              <option value="">All island groups</option>
+              {islandGroups.map((item) => <option key={item}>{item}</option>)}
             </select>
           </div>
           <div>
@@ -86,7 +86,7 @@ export default function DestinationExplorer({ destinations }) {
             A different direction, perhaps?
           </h2>
           <p className="mt-3 text-sm text-slate-500">
-            Try a different region, interest, or search term.
+            Try a different island group, interest, or search term.
           </p>
           <button onClick={reset} className="btn btn-dark mt-6" type="button">
             Clear filters
