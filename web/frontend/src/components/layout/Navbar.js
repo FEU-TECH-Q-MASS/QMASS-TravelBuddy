@@ -8,7 +8,6 @@ import { myTripsHref, newTripPath } from "@/lib/tripPlannerNavigation";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
-  [myTripsHref, "My Trips"],
   ["/how-it-works", "How It Works"],
   ["/about", "About"],
   ["/contact", "Contact"],
@@ -19,13 +18,22 @@ const adminLinks = [
   ["/admin/support-messages", "Support Messages"],
   ["/account", "My Account"],
 ];
-const travelerLinks = [...publicLinks.slice(0, 2), [newTripPath, "Plan a Trip"], ...publicLinks.slice(2)];
 
 export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const toggle = useRef(null);
-  const navigation = isAdmin ? adminLinks : isTraveler ? travelerLinks : publicLinks;
+  let navigation = publicLinks;
+  if (isAdmin) {
+    navigation = adminLinks;
+  } else if (user) {
+    navigation = [
+      ...publicLinks.slice(0, 2),
+      ...(isTraveler ? [[newTripPath, "Plan a Trip"]] : []),
+      [myTripsHref, "My Trips"],
+      ...publicLinks.slice(2),
+    ];
+  }
   const isActive = (href) => {
     const [path] = href.split("#");
     return pathname === path || (path !== "/" && pathname.startsWith(`${path}/`));
