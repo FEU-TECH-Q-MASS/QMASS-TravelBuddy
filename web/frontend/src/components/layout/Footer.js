@@ -19,16 +19,16 @@ export default function Footer({ isAdmin, isTraveler, isSignedIn, loading, homeH
           <div className="footer-links">
             {isAdmin ? (
               <>
-                <Link href="/dashboard">Admin dashboard</Link>
-                <Link href="/admin/users">Manage users</Link>
-                <Link href="/admin/support-messages">Support messages</Link>
-                <Link href="/account">My account</Link>
+                <Link href="/dashboard">Admin Dashboard</Link>
+                <Link href="/admin/users">Manage Users</Link>
+                <Link href="/admin/support-messages">Support Messages</Link>
+                <Link href="/account">My Account</Link>
               </>
             ) : (
               <>
-                <Link href="/explore">Explore destinations</Link>
-                <Link href="/how-it-works">How it works</Link>
-                {isTraveler ? <Link href={newTripPath}>Plan a trip</Link> : <Link href="/#plan-trip">Start planning</Link>}
+                <Link href="/explore">Explore Destinations</Link>
+                <Link href="/how-it-works">How It Works</Link>
+                {isTraveler ? <Link href={newTripPath}>Plan a Trip</Link> : <Link href="/#plan-trip">Start Planning</Link>}
               </>
             )}
           </div>
@@ -38,16 +38,16 @@ export default function Footer({ isAdmin, isTraveler, isSignedIn, loading, homeH
           <div className="footer-links">
             {isAdmin ? (
               <>
-                <Link href={homeHref}>Public site</Link>
-                <Link href="/contact">Contact support</Link>
+                <Link href={homeHref}>Public Site</Link>
+                <Link href="/contact">Contact Support</Link>
               </>
             ) : (
               <>
-                <Link href="/about">About the project</Link>
-                <Link href="/contact">Contact us</Link>
+                <Link href="/about">About the Project</Link>
+                <Link href="/contact">Contact Us</Link>
                 {isSignedIn ? (
                   <Link href="/dashboard">Dashboard</Link>
-                ) : !loading && <Link href="/login">Log in</Link>}
+                ) : !loading && <Link href="/login">Log In</Link>}
               </>
             )}
           </div>

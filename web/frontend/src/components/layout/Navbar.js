@@ -13,12 +13,12 @@ const publicLinks = [
   ["/contact", "Contact"],
 ];
 const adminLinks = [
-  ["/dashboard", "Admin dashboard"],
-  ["/admin/users", "Manage users"],
-  ["/admin/support-messages", "Support messages"],
-  ["/account", "My account"],
+  ["/dashboard", "Admin Dashboard"],
+  ["/admin/users", "Manage Users"],
+  ["/admin/support-messages", "Support Messages"],
+  ["/account", "My Account"],
 ];
-const travelerLinks = [...publicLinks.slice(0, 2), [newTripPath, "Plan a trip"], ...publicLinks.slice(2)];
+const travelerLinks = [...publicLinks.slice(0, 2), [newTripPath, "Plan a Trip"], ...publicLinks.slice(2)];
 
 export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }) {
   const pathname = usePathname();
@@ -40,7 +40,7 @@ export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }
   return (
     <header className="site-header" onKeyDown={onKeyDown}>
       <a className="skip-link" href="#main-content">
-        Skip to content
+        Skip to Content
       </a>
       <div className="page-width flex min-h-22 items-center justify-between gap-8">
         <Logo href={homeHref} onClick={closeMenu} />
