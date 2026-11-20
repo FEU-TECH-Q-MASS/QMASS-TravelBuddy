@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 import { findDestination, getTripTransport, originOptions } from "@/lib/travelOptions";
 import { clearTripPreview, readTripPreview, saveTripPreview } from "@/lib/tripPlannerDraft";
 import { authHref, newTripHref, newTripPath, tripDestinationCode } from "@/lib/tripPlannerNavigation";
-import { createTripSummary, interestOptions, maxTravelers, tripCurrency, validateTravelers, validateBudget } from "@/lib/tripPlanning";
+import { createTripSummary, interestOptions, lastTripDate, maxTripDays, maxTravelers, todayInPhilippines, tripCurrency, validateTravelers, validateBudget } from "@/lib/tripPlanning";
 
 const budgetAmountFormat = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 2 });
 const pesoFormat = new Intl.NumberFormat("en-PH", { style: "currency", currency: tripCurrency });
@@ -78,9 +78,7 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
       includeFlights: data.has("includeFlights"),
       interests: data.getAll("interests"),
     };
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const { summary, errors: validationErrors } = createTripSummary(values, today);
+    const { summary, errors: validationErrors } = createTripSummary(values);
     const fieldErrors = values.origin ? validationErrors : { origin: "Choose a starting point.", ...validationErrors };
     if (selectedDestination === "PAL") fieldErrors.destination = "Choose a base in Palawan.";
     setErrors(fieldErrors);
@@ -172,11 +170,13 @@ function TripPlannerForm({ destination, creating, resumePreview, canContinue }) 
                 value={origin} onChange={(code) => { setOrigin(code); clearPreview(); }} error={errors.origin} />
               <DestinationField value={selectedDestination} onChange={(code) => { setSelectedDestination(code); clearPreview(); }} error={errors.destination} />
               <label className="field-label">Departure
-                <input className="input mt-2" name="departure" type="date" required value={departure} onChange={(event) => setDeparture(event.target.value)} {...fieldProps("departure")} />
+                <input className="input mt-2" name="departure" type="date" min={todayInPhilippines()} required defaultValue={draft?.departure ?? ""} onInput={(event) => setDeparture(event.currentTarget.value)} {...fieldProps("departure")} />
                 {error("departure")}
               </label>
               <label className="field-label">Return
-                <input className="input mt-2" name="returnDate" type="date" defaultValue={draft?.returnDate ?? ""} min={departure || undefined} required {...fieldProps("returnDate")} />
+                <input className="input mt-2" name="returnDate" type="date" defaultValue={draft?.returnDate ?? ""} min={departure || undefined} max={lastTripDate(departure)} required
+                  {...fieldProps("returnDate")} aria-describedby={errors.returnDate ? "returnDate-error" : "trip-length-hint"} />
+                {!errors.returnDate && <p id="trip-length-hint" className="mt-1.5 text-xs text-slate-500">Up to {maxTripDays} days, including both travel dates.</p>}
                 {error("returnDate")}
               </label>
             </div>

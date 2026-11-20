@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, generateSavedItinerary } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import Icon from "@/components/Icon";
@@ -47,6 +47,7 @@ function TravelerDashboard({ user, onLogout }) {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [editingId, setEditingId] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -57,7 +58,7 @@ function TravelerDashboard({ user, onLogout }) {
   const visibleTrips = trips.slice(startIndex, startIndex + TRIPS_PER_PAGE);
   const firstPageButton = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
   const pageButtons = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPageButton + index);
-  const paginationDisabled = Boolean(editingId || deletingId);
+  const paginationDisabled = Boolean(editingId || deletingId || generating);
 
   function changePage(nextPage) {
     if (paginationDisabled || nextPage === currentPage) return;
@@ -95,6 +96,27 @@ function TravelerDashboard({ user, onLogout }) {
       setError(e.message);
     } finally {
       setDeletingId("");
+    }
+  }
+
+  async function handleTripSave(updated, shouldGenerate) {
+    setTrips((current) => current.map((item) => item.id === updated.id ? updated : item));
+    setEditingId("");
+    if (!shouldGenerate) {
+      setSuccess(updated.budgetBreakdown.remaining < 0 ? "Trip updated. Open its workspace to replan for your budget." : "Trip updated.");
+      return;
+    }
+
+    setGenerating(true);
+    setSuccess("Trip saved. Generating an AI itinerary…");
+    try {
+      const { trip } = await generateSavedItinerary(updated, "schedule");
+      setTrips((current) => current.map((item) => item.id === trip.id ? trip : item));
+      setSuccess(trip.itineraryUpdate ? "Trip saved with a planning preview. Open its workspace to retry AI generation." : "Trip saved. Your AI itinerary is ready.");
+    } catch {
+      setSuccess("Trip saved. Open its workspace to check the itinerary or retry AI generation.");
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -173,14 +195,10 @@ function TravelerDashboard({ user, onLogout }) {
                   </div>
                 {editingId !== trip.id && <div className="mt-5 flex flex-wrap items-center gap-2">
                   <Link href={`/trips/${trip.id}`} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-900 px-3 py-3 text-xs font-semibold text-white transition-colors hover:bg-brand-700">Open workspace <Icon name="arrow" size={15} /></Link>
-                  <button type="button" onClick={() => { setEditingId(trip.id); setSuccess(""); }} disabled={Boolean(deletingId) || Boolean(editingId)} aria-label={`Edit trip to ${trip.destination}`} title="Edit trip" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-brand-700 transition-colors hover:border-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"><Icon name="edit" size={17} /></button>
-                  <button type="button" onClick={() => deleteTrip(trip)} disabled={Boolean(deletingId) || Boolean(editingId)} aria-label={deletingId === trip.id ? "Deleting trip" : `Permanently delete trip to ${trip.destination}`} title="Delete permanently" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"><Icon name={deletingId === trip.id ? "clock" : "trash"} size={17} /></button>
+                  <button type="button" onClick={() => { setEditingId(trip.id); setSuccess(""); }} disabled={paginationDisabled} aria-label={`Edit trip to ${trip.destination}`} title="Edit trip" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-brand-700 transition-colors hover:border-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"><Icon name="edit" size={17} /></button>
+                  <button type="button" onClick={() => deleteTrip(trip)} disabled={paginationDisabled} aria-label={deletingId === trip.id ? "Deleting trip" : `Permanently delete trip to ${trip.destination}`} title="Delete permanently" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"><Icon name={deletingId === trip.id ? "clock" : "trash"} size={17} /></button>
                 </div>}
-                {editingId === trip.id && <TripEditForm trip={trip} onCancel={() => setEditingId("")} onSave={(updated) => {
-                  setTrips((current) => current.map((item) => item.id === updated.id ? updated : item));
-                  setEditingId("");
-                  setSuccess("Trip updated. Your itinerary preview and estimates have been rebuilt.");
-                }} />}
+                {editingId === trip.id && <TripEditForm trip={trip} onCancel={() => setEditingId("")} onSave={(updated, shouldGenerate) => void handleTripSave(updated, shouldGenerate)} />}
                 </div>
               </article>
             ))}

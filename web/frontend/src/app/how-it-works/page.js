@@ -21,7 +21,7 @@ const steps = [
   },
   {
     icon: "route", title: "Make room for the adventure.",
-    text: "Sign in to save a trip, open its workspace, and review your itinerary, routes, and estimates. Edit the details from your dashboard as plans change.",
+    text: "Sign in to save a trip, open its workspace, and review your itinerary, routes, and estimates. Edit the trip from the workspace or your dashboard as plans change.",
     tags: ["Saved journeys", "A daily itinerary", "Room to refine"],
   },
 ];
@@ -35,7 +35,7 @@ const details = [
 
 const questions = [
   ["Do I need an account to get started?", "You can explore destinations and preview your trip preferences without an account. Sign in or create an account to save trips and return to them from your dashboard."],
-  ["Can I change a saved trip?", "Yes. Open your dashboard and select the pen button on a trip. You can update its destination, dates, travelers, and budget. Saving rebuilds the itinerary preview, routes, and estimates using your new details."],
+  ["Can I change a saved trip?", "Yes. Select Edit trip in the workspace or on a dashboard trip card. Changing the destination or dates starts a new AI itinerary after saving. Budget and group-size edits keep your itinerary. If your estimate is over budget, you can try replanning from the workspace."],
   ["Are the prices confirmed?", "Itinerary costs, airfare allowances, and sample hotel prices are planning estimates. Check your travel dates with the provider for current availability, fees, and fares."],
   ["Can I book flights or hotels through TravelBuddy?", "TravelBuddy helps you plan and review travel options. Flight and hotel bookings and payments are not available on this website."],
   ["Will I see weather for every travel date?", "Weather depends on the provider’s forecast window and service availability. Trips outside that window may not have a forecast yet. Check again closer to departure."],

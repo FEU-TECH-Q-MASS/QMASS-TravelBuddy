@@ -1,11 +1,13 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, generateSavedItinerary } from "@/lib/api";
 import ConditionWarning from "@/components/ConditionWarning";
-import { destinationImage, resolveTravelLocation, uniqueTravelLocations } from "@/lib/travelOptions";
+import { destinationImage, resolveTravelLocation, orderedRouteLocations } from "@/lib/travelOptions";
 import TripTransport from "@/components/TripTransport";
 import RouteMap from "@/components/RouteMap";
+import Icon from "@/components/Icon";
+import TripEditForm from "@/components/TripEditForm";
 const tabs = ["itinerary", "transport", "hotels", "budget", "routes", "conditions"];
 const money = (trip, value) => value == null ? "Price unavailable" : `${trip.currency} ${Number(value).toLocaleString()}`;
 const tripDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -14,18 +16,87 @@ const tripDateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
+const sourceDateFormatter = new Intl.DateTimeFormat("en-PH", {
+  month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+  timeZone: "Asia/Manila", timeZoneName: "short",
+});
+
+function SourceTime({ value, label }) {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) return null;
+  return <span>{label} <time dateTime={value}>{sourceDateFormatter.format(date)}</time></span>;
+}
 
 function formatTripDate(value) {
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isNaN(date.getTime()) ? value : tripDateFormatter.format(date);
 }
 
+function itineraryUpdateMessage(update, busy, error) {
+  if (busy === "schedule") return "Trip saved. Generating an AI itinerary for your updated trip…";
+  if (busy === "budget") return "Looking for activities that fit your group budget…";
+  if (error) return error;
+  if (update?.status === "pending") return "Your edits are saved. Generate an AI itinerary for the updated trip.";
+  if (update?.status === "fixed-costs") return "Airfare, lodging, meals, and transport already exceed your budget. Edit your trip costs or budget before replanning.";
+  if (update?.status === "unfit") return "Gemini did not find a plan within your estimated budget. Your existing itinerary is still saved.";
+  if (update?.status === "failed") return update.reason === "schedule"
+    ? "AI generation was unavailable. Your edits and planning preview are saved."
+    : "AI replanning was unavailable. Your existing itinerary is still saved.";
+  return "";
+}
+
 export default function TripWorkspace({ params }) {
   const [trip, setTrip] = useState(null); const [tab, setTab] = useState("itinerary"); const [error, setError] = useState(""); const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState("");
+  const [generationReason, setGenerationReason] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const refreshInFlight = useRef(false);
+  const generationInFlight = useRef(false);
+  const editButton = useRef(null);
+  const editPanel = useRef(null);
+  const itineraryNotice = useRef(null);
   useEffect(() => { Promise.resolve(params).then(({ id }) => api(`/trips/${id}`).then(({ trip: value }) => setTrip(value)).catch((e) => setError(e.message))); }, [params]);
+  useEffect(() => {
+    if (editing) editPanel.current?.focus();
+  }, [editing]);
+
+  function openEditor() {
+    if (refreshInFlight.current || generationInFlight.current) return;
+    setError("");
+    setSaved("");
+    setGenerationError("");
+    setEditing(true);
+  }
+
+  function closeEditor() {
+    setEditing(false);
+    requestAnimationFrame(() => {
+      if (editButton.current?.disabled) itineraryNotice.current?.focus();
+      else editButton.current?.focus();
+    });
+  }
+
+  async function updateItinerary(savedTrip, reason) {
+    if (generationInFlight.current || refreshInFlight.current) return;
+    generationInFlight.current = true;
+    setGenerationReason(reason);
+    setGenerationError("");
+    setSaved("");
+    try {
+      const { trip: updated } = await generateSavedItinerary(savedTrip, reason);
+      setTrip((current) => current?.id === updated.id ? updated : current);
+      if (!updated.itineraryUpdate) setSaved("AI itinerary updated.");
+    } catch (e) {
+      setGenerationError(e.message);
+    } finally {
+      generationInFlight.current = false;
+      setGenerationReason("");
+    }
+  }
+
   async function refreshData(kind = "all") {
-    if (!trip || refreshInFlight.current) return;
+    if (!trip || editing || refreshInFlight.current || generationInFlight.current) return;
     refreshInFlight.current = true;
     setRefreshing(true);
     setError("");
@@ -50,6 +121,11 @@ export default function TripWorkspace({ params }) {
   const originLabel = resolveTravelLocation(trip.origin).replace(/, Philippines$/i, "");
   const overviewImage = destinationImage(trip.destination) || "/images/philippines.jpg";
   const { estimatedTotal, remaining } = trip.budgetBreakdown;
+  const update = trip.itineraryUpdate;
+  const generationStatus = itineraryUpdateMessage(update, generationReason, generationError);
+  const canRetrySchedule = update?.reason === "schedule";
+  const canReplanBudget = remaining < 0 && !canRetrySchedule && update?.status !== "fixed-costs";
+  const scheduleKey = `${trip.id}:${trip.destination}:${trip.departure}:${trip.returnDate}`;
   return (
     <section className="page-width section-space">
       <div className="relative isolate overflow-hidden rounded-3xl bg-brand-900 p-7 text-white sm:p-10">
@@ -64,23 +140,48 @@ export default function TripWorkspace({ params }) {
               {" to "}<time dateTime={trip.returnDate}>{formatTripDate(trip.returnDate)}</time>
             </p>
           </div>
-          <span className="rounded-full border border-white/20 bg-brand-900/70 px-4 py-2 text-xs font-semibold">{trip.generation?.provider === "google-gemini" ? "AI itinerary" : "Planning preview"}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button ref={editButton} type="button" className="btn bg-white text-brand-900 hover:bg-brand-50 disabled:opacity-70"
+              onClick={openEditor} disabled={refreshing || editing || Boolean(generationReason)} aria-expanded={editing} aria-controls="workspace-trip-editor">
+              <Icon name="edit" size={16} /> Edit trip
+            </button>
+          </div>
         </div>
         <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
           <Summary label="Travelers" value={trip.travelers} detail="in your group" />
           <Summary label="Budget" value={money(trip, trip.budget)} detail="whole trip" />
-          <Summary label="Estimate" value={money(trip, estimatedTotal)} detail={remaining < 0 ? `${money(trip, Math.abs(remaining))} over budget` : "within budget"} />
+          <Summary label="Group estimate" value={money(trip, estimatedTotal)} detail={remaining < 0 ? `${money(trip, Math.abs(remaining))} over budget` : "estimated within budget"} />
         </div>
       </div>
+      <div id="workspace-trip-editor" ref={editPanel} tabIndex={-1} hidden={!editing}
+        className="mt-6 scroll-mt-28 rounded-2xl border border-slate-200 bg-white px-5 pb-5 sm:px-6 sm:pb-6">
+        {editing && <TripEditForm key={trip.id} trip={trip} onCancel={closeEditor} onSave={(updated, shouldGenerate) => {
+          setTrip(updated);
+          setSaved("Trip updated.");
+          closeEditor();
+          if (shouldGenerate) void updateItinerary(updated, "schedule");
+        }} />}
+      </div>
+      {(generationStatus || saved || canRetrySchedule || canReplanBudget) && (
+        <div className="notice mt-5 flex flex-wrap items-center justify-between gap-3">
+          <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || "Looking for a lower-cost itinerary?"}</p>
+          {(canRetrySchedule || canReplanBudget) && (
+            <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
+              onClick={() => void updateItinerary(trip, canRetrySchedule ? "schedule" : "budget")}>
+              {canRetrySchedule ? (update.status === "pending" && !generationError ? "Generate AI itinerary" : "Retry AI generation") : "Replan to fit budget"}
+            </button>
+          )}
+        </div>
+      )}
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2">
           {tabs.map((value) => <button key={value} onClick={() => selectTab(value)} className="filter-pill capitalize" aria-pressed={tab === value}>{value}</button>)}
         </div>
-        <button className="btn btn-outline" onClick={() => refreshData()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh travel data"}</button>
+        <button type="button" className="btn btn-outline" onClick={() => refreshData()} disabled={refreshing || editing || Boolean(generationReason)}>{refreshing ? "Refreshing…" : "Refresh travel data"}</button>
       </div>
       {error && <p className="notice mt-5">{error}</p>}
       <div className="mt-8">
-        {tab === "itinerary" && <Itinerary trip={trip} />}
+        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} />}
         {tab === "transport" && (
           <div>
             <h2 className="text-3xl font-semibold text-brand-900">Getting there</h2>
@@ -91,15 +192,9 @@ export default function TripWorkspace({ params }) {
             </div>
           </div>
         )}
-        {tab === "hotels" && <OfferList title="Hotel options" items={trip.offers.hotels} render={(item) => (
-          <>
-            <h3 className="text-lg font-semibold">{item.name}</h3>
-            <p className="mt-2 text-sm text-slate-500">{item.location} · capacity {item.guests} · {item.availability}</p>
-            <div className="mt-4 flex justify-between"><strong>{money(trip, item.totalStay)} total</strong><span className="text-sm text-slate-500">{money(trip, item.nightlyRate)} per night</span></div>
-          </>
-        )} />}
+        {tab === "hotels" && <Hotels trip={trip} />}
         {tab === "budget" && <Budget trip={trip} />}
-        {tab === "routes" && <Routes trip={trip} />}
+        {tab === "routes" && <Routes key={scheduleKey} trip={trip} />}
         {tab === "conditions" && <div aria-busy={refreshing}>{refreshing && <p role="status" className="notice mb-5">Updating weather and travel conditions…</p>}<Conditions trip={trip} /></div>}
       </div>
     </section>
@@ -218,9 +313,7 @@ function Itinerary({ trip }) {
                     </h4>
                   </div>
 
-                  <strong className="text-sm text-brand-700">
-                    {money(trip, activity.cost)}
-                  </strong>
+                  <strong className="text-sm text-brand-700">{money(trip, activity.cost)} per traveler</strong>
                 </div>
 
                 {/* ACTIVITY DETAILS */}
@@ -229,16 +322,7 @@ function Itinerary({ trip }) {
                     {activity.durationMinutes} minutes
                   </span>
 
-                  {activity.travelMinutesFromPrevious > 0 && (
-                    <span>
-                      Next stop:{" "}
-                      {activity.travelMinutesFromPrevious} min ·{" "}
-                      {Number(
-                        activity.distanceKmFromPrevious
-                      ).toFixed(1)}{" "}
-                      km
-                    </span>
-                  )}
+                  {activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
                 </div>
 
                 {/* MODULE 6: WEATHER WARNINGS */}
@@ -263,14 +347,74 @@ function Itinerary({ trip }) {
   );
 }
 
-function OfferList({ title, items, render }) { return <div><p className="eyebrow">Travel options</p><h2 className="text-3xl font-semibold text-brand-900">{title}</h2>{items.length ? <div className="mt-6 grid gap-4">{items.map((item) => <article key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6">{render(item)}{item.googleMapsUri && <a href={item.googleMapsUri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm font-semibold text-brand-700 underline">View on Google Maps ↗</a>}</article>)}</div> : <div className="notice mt-6">No live {title.toLowerCase()} are available yet. Configure a live provider and select “Refresh travel data” to retrieve current results.</div>}</div>; }
-function Budget({ trip }) { const entries = Object.entries(trip.budgetBreakdown).filter(([key]) => !["currency", "remaining", "estimatedTotal"].includes(key)); const remaining = Number(trip.budgetBreakdown.remaining || 0); const overBudget = remaining < 0; return <div><p className="eyebrow">Budget overview</p><h2 className="text-3xl font-semibold text-brand-900">Where your budget goes.</h2><div className="mt-6 grid gap-4 sm:grid-cols-2">{entries.map(([key, value]) => <div key={key} className="rounded-2xl border border-slate-200 p-5"><p className="text-sm capitalize text-slate-500">{key.replace(/([A-Z])/g, " $1")}</p><p className="mt-2 text-2xl font-semibold text-brand-900">{money(trip, value)}</p></div>)}</div><div className={`mt-5 rounded-2xl p-5 ${overBudget ? "border border-red-200 bg-red-50 text-red-900" : "bg-brand-50 text-brand-900"}`}><p className="text-sm font-semibold">{overBudget ? "Can't afford this plan" : "Estimated budget remaining"}</p><p className="mt-1 text-2xl font-semibold">{overBudget ? `${money(trip, Math.abs(remaining))} over budget` : money(trip, remaining)}</p><p className="mt-2 text-sm">{overBudget ? "Increase your budget or reduce activities, flights, or accommodation." : "This estimate stays within your planned budget."}</p></div></div>; }
+function Hotels({ trip }) {
+  const { hotels = [] } = trip.offers || {};
+  const basis = trip.estimateBasis;
+  return (
+    <div>
+      <h2 className="text-3xl font-semibold text-brand-900">Hotel estimates</h2>
+      {basis?.nights === 0 ? <p className="notice mt-6">This trip has no overnight stay.</p> : hotels.length ? (
+        <div className="mt-6 grid gap-4">
+          {hotels.map((hotel) => (
+            <article key={hotel.id} className="rounded-3xl border border-slate-200 bg-white p-6">
+              <h3 className="text-lg font-semibold">{hotel.name}</h3>
+              <p className="mt-1 text-sm text-slate-600">{hotel.location}</p>
+              <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm text-slate-600">
+                <span>{hotel.source || (hotel.id?.startsWith("ai-hotel-") ? "Gemini estimate" : "TravelBuddy sample")}</span>
+                <SourceTime value={hotel.quotedAt} label="Prepared" />
+              </p>
+              <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
+                <strong>{money(trip, hotel.totalStay)} group stay</strong>
+                <span className="text-sm text-slate-600">{money(trip, hotel.nightlyRate)} per room per night</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-600">{hotel.rooms} {hotel.rooms === 1 ? "room" : "rooms"} · {hotel.nights} {hotel.nights === 1 ? "night" : "nights"}</p>
+              <p className="mt-1 text-xs text-slate-600">Confirm availability, taxes, and fees with the hotel.</p>
+              {hotel.id === basis?.hotelId && <p className="mt-2 text-sm font-medium text-brand-700">Used in your budget estimate</p>}
+            </article>
+          ))}
+        </div>
+      ) : <p className="notice mt-6">Hotel estimates are unavailable. Your budget uses a room allowance.</p>}
+    </div>
+  );
+}
+
+function Budget({ trip }) {
+  const { rooms, nights, vehicles, guestsPerRoom, guestsPerVehicle } = trip.estimateBasis || {};
+  const { flights, accommodation, activities, meals, transportation, remaining } = trip.budgetBreakdown;
+  const entries = [
+    ["Airfare", flights, trip.includeFlights ? "Estimated per traveler" : "Excluded from estimate"],
+    ["Accommodation", accommodation, nights ? `${rooms} ${rooms === 1 ? "room" : "rooms"} for ${nights} ${nights === 1 ? "night" : "nights"} · up to ${guestsPerRoom} guests per room` : "No overnight stays"],
+    ["Activities", activities, "Estimated per traveler"],
+    ["Meals", meals, "Daily allowance per traveler"],
+    ["Local transport", transportation, `${vehicles} ${vehicles === 1 ? "vehicle" : "vehicles"} · up to ${guestsPerVehicle} travelers each`],
+  ];
+  const overBudget = remaining < 0;
+  return (
+    <div>
+      <h2 className="text-3xl font-semibold text-brand-900">Group budget</h2>
+      <p className="mt-2 text-sm text-slate-600">Planning estimates for the whole group. Confirm current prices, taxes, and fees before booking.</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {entries.map(([label, value, description]) => (
+          <div key={label} className="rounded-2xl border border-slate-200 p-5">
+            <p className="text-sm text-slate-600">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-brand-900">{money(trip, value)}</p>
+            <p className="mt-1 text-sm text-slate-600">{description}</p>
+          </div>
+        ))}
+      </div>
+      <div className={`mt-5 rounded-2xl p-5 ${overBudget ? "border border-red-200 bg-red-50 text-red-900" : "bg-brand-50 text-brand-900"}`}>
+        <p className="text-sm font-semibold">{overBudget ? "Estimated over budget" : "Estimated budget remaining"}</p>
+        <p className="mt-1 text-2xl font-semibold">{money(trip, Math.abs(remaining))}</p>
+      </div>
+    </div>
+  );
+}
 function Routes({ trip }) {
   const routes = (trip.routes || []).map((route) => {
     const day = trip.itinerary.find((item) => item.day === route.day);
     const activities = day?.activities.map((activity) => activity.location || activity.title).filter(Boolean);
     const stops = route.stops?.map((stop) => stop.location || stop.title).filter(Boolean);
-    const locations = uniqueTravelLocations(activities?.length ? activities : stops?.length ? stops : [trip.destination]);
+    const locations = orderedRouteLocations(activities?.length ? activities : stops?.length ? stops : [trip.destination]);
     return { ...route, locations };
   });
   const [selectedDay, setSelectedDay] = useState(routes[0]?.day);
@@ -293,26 +437,20 @@ function Routes({ trip }) {
               <button key={item.day} type="button" onClick={() => setSelectedDay(item.day)} aria-pressed={route.day === item.day}
                 className={`shrink-0 rounded-xl px-4 py-3 text-left ${route.day === item.day ? "bg-brand-900 text-white" : "bg-slate-50 text-slate-600"}`}>
                 <span className="block text-xs font-bold">DAY {item.day}</span>
-                <span className="mt-1 block text-xs">{item.totalDistanceKm.toFixed(1)} km estimated</span>
               </button>
             ))}
           </div>
         </>
       )}
       {sharedRoute && <p className="mt-3 text-sm text-slate-500">The same route applies to all {routes.length} days.</p>}
-      <div className="mt-6"><RouteMap locations={route.locations} /></div>
-      {showDaySelector && (
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="font-semibold text-brand-900">Day {route.day}</p>
-          <p className="mt-1 text-sm text-slate-500">{route.totalDistanceKm.toFixed(1)} km · {route.estimatedTravelMinutes} minutes estimated travel</p>
-        </div>
-      )}
+      <div className="mt-6"><RouteMap locations={route.locations} showEstimate={!sharedRoute} /></div>
     </div>
   );
 }
 function weatherDetails(value) {
-  if (typeof value === "string") return { status: "Planning note", text: value };
-  if (!value?.days?.length) return { status: "Not available", text: "Forecast coverage is not available for these travel dates yet." };
+  if (!value || typeof value === "string" || value.status === "not_checked") return { status: "Forecast not checked", text: "Refresh travel data to check forecast coverage." };
+  if (value.status === "unavailable") return { status: "Weather service unavailable", text: value.error || "Try refreshing later." };
+  if (!value.days?.length) return { status: "Outside forecast window", text: "Check again closer to departure." };
   const days = value.days;
   const average = Math.round(days.reduce((sum, item) => sum + Number(item.temperatureC || 0), 0) / days.length);
   const rain = Math.round(Math.max(...days.map((item) => Number(item.rainProbability || 0))) * 100);
@@ -335,7 +473,8 @@ function WeatherVisual({ value }) {
 }
 
 function holidayDetails(value) {
-  if (typeof value === "string") return { status: "Planning note", text: value };
+  if (!value || typeof value === "string" || value.status === "not_checked") return { status: "Holidays not checked", text: "Refresh travel data to check the selected dates." };
+  if (value.status !== "available") return { status: "Holiday data unavailable", text: value.error || "Try refreshing later." };
   if (!value?.items?.length) return { status: "No holidays listed", text: "No public holidays were found during your selected dates." };
   const names = value.items.slice(0, 2).map((item) => `${item.name || item.localName || "Public holiday"} (${item.date})`).join(" · ");
   return { status: `${value.items.length} holiday${value.items.length === 1 ? "" : "s"}`, text: `${names}. Expect possible changes to opening hours and transport demand.` };
@@ -349,7 +488,28 @@ function seasonalDetails(value) {
 
 function Conditions({ trip }) {
   const conditions = trip.conditions || {};
-  const timestamp = conditions.sourceTimestamp || conditions.generatedAt;
-  const cards = [["Weather", weatherDetails(conditions.weather), "☁"], ["Holidays", holidayDetails(conditions.holidays), "▣"], ["Seasonal context", seasonalDetails(conditions.seasonalContext || conditions.seasonalInsights), "◌"]];
-  return <div><p className="eyebrow">Travel insights</p><h2 className="text-3xl font-semibold text-brand-900">Know before you go.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">A quick practical briefing for {trip.destination}, based on your selected dates.</p><div className="mt-6 grid gap-4 md:grid-cols-3">{cards.map(([title, details, icon]) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-brand-700">{title}</p><span className="text-xl text-brand-700" aria-hidden="true">{icon}</span></div>{title === "Weather" && <WeatherVisual value={conditions.weather} />}<p className="mt-4 text-sm font-semibold text-brand-900">{details.status}</p><p className="mt-2 text-sm leading-6 text-slate-600">{details.text}</p></article>)}</div>{timestamp && <p className="mt-5 text-xs text-slate-400">Updated {new Date(timestamp).toLocaleString()}</p>}</div>;
+  const cards = [
+    ["Weather", weatherDetails(conditions.weather), conditions.weather, "OpenWeather"],
+    ["Holidays", holidayDetails(conditions.holidays), conditions.holidays, "Nager.Date"],
+    ["Seasonal context", seasonalDetails(conditions.seasonalContext || conditions.seasonalInsights), null, "TravelBuddy"],
+  ];
+  return (
+    <div>
+      <h2 className="text-3xl font-semibold text-brand-900">Travel conditions</h2>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        {cards.map(([title, details, feed, source]) => (
+          <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="font-semibold text-brand-900">{title}</h3>
+            {title === "Weather" && <WeatherVisual value={conditions.weather} />}
+            <p className="mt-4 text-sm font-semibold text-brand-900">{details.status}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{details.text}</p>
+            <p className="mt-3 flex flex-wrap gap-x-2 text-xs text-slate-600">
+              <span>{feed?.provider || source}</span>
+              <SourceTime value={feed?.fetchedAt || (feed?.status === "unavailable" ? conditions.generatedAt : null)} label="Checked" />
+            </p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
 }

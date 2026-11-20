@@ -9,6 +9,7 @@ test("conditions refresh checks ownership and preserves the itinerary and travel
   const conditionsService = require("../../src/services/travelConditionsService");
   const { enrichTrip, trips } = require("../../src/store");
   const original = enrichTrip({ origin: "MNL", destination: "DGT", departure: "2026-11-30", returnDate: "2026-12-01", travelers: 1, currency: "PHP", budget: 10000 }, "owner");
+  trips.set(original.id, original);
   const expected = { weather: { days: [] }, holidays: { items: [] }, generatedAt: "2026-11-20T00:00:00.000Z" };
   mock.method(auth, "requireAuth", (req, res, next) => { req.user = { id: req.headers["x-test-user"] || "owner" }; next(); });
   mock.method(repository, "getTrip", async (id, owner) => trips.get(id)?.ownerId === owner ? trips.get(id) : null);

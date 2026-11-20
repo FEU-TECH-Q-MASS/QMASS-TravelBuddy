@@ -1,5 +1,6 @@
 const { destinationLocation } = require("../../../shared/destinations.cjs");
 const { getTravelConditions } = require("./travelConditionsService");
+const { getAllowances, priceHotelEstimates } = require("./trip-budget.service");
 
 async function jsonRequest(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
@@ -17,18 +18,26 @@ function extractJson(text) {
 
 function sampleHotels(trip) {
   const destination = destinationLocation(trip.destination);
-  const nights = Math.max(1, Math.round((new Date(`${trip.returnDate}T00:00:00Z`) - new Date(`${trip.departure}T00:00:00Z`)) / 86400000));
-  return [{ id: `sample-hotel-${trip.id}`, name: "Sample accommodation", location: destination, guests: trip.travelers, nightlyRate: 3500, totalStay: nights * 3500, currency: trip.currency, availability: "Check availability", taxesAndFees: "See provider details", quotedAt: new Date().toISOString(), sample: true }];
+  return [{ id: `sample-hotel-${trip.id}`, name: "Sample accommodation", location: destination, nightlyRate: getAllowances(trip.currency).room, currency: trip.currency, quotedAt: new Date().toISOString(), sample: true, source: "TravelBuddy sample" }];
 }
 
 async function generatePrototypeOffers(trip) {
   if (!process.env.GEMINI_API_KEY) return { provider: "sample", hotels: sampleHotels(trip) };
   const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-  const prompt = `Create illustrative hotel estimates as JSON only. These are prototype estimates, with no live availability or booking. Return {"hotels":[{"name":string,"location":string,"nightlyRate":number,"totalStay":number,"currency":string,"style":string}]}. Trip: ${JSON.stringify({ destination: destinationLocation(trip.destination), departure: trip.departure, returnDate: trip.returnDate, travelers: trip.travelers, currency: trip.currency, budget: trip.budget })}`;
+  const prompt = `Create illustrative hotel estimates as JSON only. These are prototype estimates, with no live availability or booking. Return {"hotels":[{"name":string,"location":string,"nightlyRate":number,"currency":string}]}. Nightly rates are for one room for up to two guests, in ${trip.currency}. Trip: ${JSON.stringify({ destination: destinationLocation(trip.destination), departure: trip.departure, returnDate: trip.returnDate })}`;
   const response = await jsonRequest(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" } }) });
   const generated = extractJson(response.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join(""));
-  const hotels = (Array.isArray(generated.hotels) ? generated.hotels : []).slice(0, 5).map((item, index) => ({ id: `ai-hotel-${trip.id}-${index}`, name: item.name || "Hotel", location: item.location || trip.destination, guests: trip.travelers, nightlyRate: Number(item.nightlyRate) || 0, totalStay: Number(item.totalStay) || 0, currency: item.currency || trip.currency, availability: "Check availability", taxesAndFees: "See provider details", quotedAt: new Date().toISOString(), sample: true }));
-  return { provider: "gemini-prototype", hotels: hotels.length ? hotels : sampleHotels(trip) };
+  const hotels = (Array.isArray(generated.hotels) ? generated.hotels : [])
+    .filter((item) => item?.currency === trip.currency && Number.isFinite(item.nightlyRate) && item.nightlyRate > 0 && Number.isSafeInteger(Math.round(item.nightlyRate * 100)))
+    .slice(0, 5)
+    .map((item, index) => ({
+      id: `ai-hotel-${trip.id}-${index}`,
+      name: typeof item.name === "string" && item.name.trim() ? item.name : "Sample accommodation",
+      location: typeof item.location === "string" ? item.location : destinationLocation(trip.destination),
+      nightlyRate: item.nightlyRate, currency: trip.currency,
+      quotedAt: new Date().toISOString(), sample: true, source: "Gemini estimate",
+    }));
+  return hotels.length ? { provider: "gemini-prototype", hotels } : { provider: "sample", hotels: sampleHotels(trip) };
 }
 
 async function refreshTravelData(trip) {
@@ -36,7 +45,11 @@ async function refreshTravelData(trip) {
     generatePrototypeOffers(trip).catch(() => ({ provider: "sample", hotels: sampleHotels(trip) })),
     getTravelConditions(trip).catch(() => null),
   ]);
-  return { offers: { flights: [], hotels: options.hotels }, conditions: conditions || trip.conditions, providers: { flights: "route-guidance", hotels: options.provider } };
+  return {
+    offers: { flights: [], hotels: priceHotelEstimates(trip, options.hotels) },
+    conditions: conditions || trip.conditions,
+    providers: { flights: "route-guidance", hotels: options.provider },
+  };
 }
 
 module.exports = { refreshTravelData };

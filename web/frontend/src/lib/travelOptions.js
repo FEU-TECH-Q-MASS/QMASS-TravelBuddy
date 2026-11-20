@@ -16,7 +16,10 @@ export const originOptions = [...airportOptions, ["BAN", "Banaue"]];
 
 export const destinationOptions = catalog.destinations
   .filter((place) => !place.parent)
-  .map(({ code, name }) => [code, name])
+  .map(({ code, name, airport, airportName }) => [
+    code, name,
+    code === "PAL" ? palawanOptions.map((base) => `${base.name} ${base.airport} ${base.airportName}`).join(" ") : `${airport || ""} ${airportName || ""}`,
+  ])
   .sort((first, second) => first[1].localeCompare(second[1]));
 
 function normalizePhotoDestination(value) {
@@ -39,15 +42,9 @@ export function resolveTravelLocation(value) {
   return catalog.destinationLocation(location);
 }
 
-export function uniqueTravelLocations(values) {
-  const seen = new Set();
+export function orderedRouteLocations(values) {
   return values
     .map(resolveTravelLocation)
-    .map((value) => value.trim())
-    .filter((value) => {
-      const normalized = value.toLowerCase();
-      if (!value || seen.has(normalized)) return false;
-      seen.add(normalized);
-      return true;
-    });
+    .filter(Boolean)
+    .filter((value, index, locations) => value.toLowerCase() !== locations[index - 1]?.toLowerCase());
 }

@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { destinationLocation } = require("../../../shared/destinations.cjs");
+const { dayMs, validateTripDates } = require("../../../shared/tripDates.cjs");
 
 const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
@@ -12,19 +13,35 @@ function extractJson(text) {
 }
 
 function validateItinerary(value, trip) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 14) throw new Error("The AI itinerary contained an invalid number of days.");
+  const { errors, nights } = validateTripDates(trip.departure, trip.returnDate);
+  if (Object.keys(errors).length || !Array.isArray(value) || value.length !== nights + 1) {
+    throw new Error("The AI itinerary did not cover the selected trip dates.");
+  }
+  const start = Date.parse(`${trip.departure}T00:00:00Z`);
   return value.map((day, dayIndex) => {
     if (!day || !Array.isArray(day.activities) || day.activities.length < 1 || day.activities.length > 8) throw new Error(`Day ${dayIndex + 1} is incomplete.`);
-    return { day: dayIndex + 1, date: day.date || trip.itinerary[dayIndex]?.date, activities: day.activities.map((activity, activityIndex) => {
+    const date = new Date(start + dayIndex * dayMs).toISOString().slice(0, 10);
+    if (day.date !== date) throw new Error(`The AI itinerary did not include the expected date ${date}.`);
+    return { day: dayIndex + 1, date, activities: day.activities.map((activity, activityIndex) => {
       if (!activity || typeof activity.title !== "string" || !activity.title.trim()) throw new Error(`Day ${dayIndex + 1} has an invalid activity.`);
-      return { id: `activity_${crypto.randomUUID()}`, time: typeof activity.time === "string" ? activity.time.slice(0, 20) : `${String(9 + activityIndex * 3).padStart(2, "0")}:00`, title: activity.title.trim().slice(0, 180), location: typeof activity.location === "string" && activity.location.trim() ? activity.location.trim().slice(0, 180) : destinationLocation(trip.destination), durationMinutes: Number.isFinite(Number(activity.durationMinutes)) ? Math.max(15, Math.min(480, Number(activity.durationMinutes))) : 90, cost: Number.isFinite(Number(activity.cost)) ? Math.max(0, Number(activity.cost)) : 0, travelMinutesFromPrevious: Number.isFinite(Number(activity.travelMinutesFromPrevious)) ? Math.max(0, Number(activity.travelMinutesFromPrevious)) : 0, distanceKmFromPrevious: Number.isFinite(Number(activity.distanceKmFromPrevious)) ? Math.max(0, Number(activity.distanceKmFromPrevious)) : 0 };
+      if (!Number.isFinite(activity.cost) || activity.cost < 0) throw new Error(`Day ${dayIndex + 1} has an invalid activity cost.`);
+      return {
+        id: `activity_${crypto.randomUUID()}`,
+        time: typeof activity.time === "string" ? activity.time.slice(0, 20) : `${String(9 + activityIndex * 3).padStart(2, "0")}:00`,
+        title: activity.title.trim().slice(0, 180),
+        location: typeof activity.location === "string" && activity.location.trim() ? activity.location.trim().slice(0, 180) : destinationLocation(trip.destination),
+        durationMinutes: Number.isFinite(Number(activity.durationMinutes)) ? Math.max(15, Math.min(480, Number(activity.durationMinutes))) : 90,
+        cost: activity.cost,
+      };
     }) };
   });
 }
 
 async function generateItinerary(trip) {
   if (!process.env.GEMINI_API_KEY) return { itinerary: trip.itinerary, provider: "demo-fallback", model: null, generatedAt: new Date().toISOString() };
-  const prompt = `Create a practical daily travel itinerary as JSON for this trip. Return ONLY a JSON array, with no markdown. Each item must have date and activities. Each activity must have time, title, location, durationMinutes, cost in ${trip.currency}, travelMinutesFromPrevious, and distanceKmFromPrevious. The location must be a real, searchable place in the Philippines near the destination, suitable for Google Maps directions. Make every day meaningfully different: do not repeat activity titles, locations, or the same morning/lunch/sunset template. Vary the themes across culture, nature, food, adventure, markets, viewpoints, and local experiences based on the trip interests. Do not invent bookings or claim live availability. Keep costs realistic estimates and fit the total budget. Trip: ${JSON.stringify({ destination: destinationLocation(trip.destination), departure: trip.departure, returnDate: trip.returnDate, travelers: trip.travelers, budget: trip.budget, currency: trip.currency, interests: trip.interests || [] })}`;
+  const { activities, remaining } = trip.budgetBreakdown;
+  const activityBudget = Math.max(0, Math.round(remaining * 100) + Math.round(activities * 100)) / 100;
+  const prompt = `Create a practical daily travel itinerary as JSON. Return only a JSON array, with one item per calendar date from departure through return, in order. Each item must contain date (YYYY-MM-DD) and activities. Each activity must contain time, title, location, durationMinutes, and a numeric cost per traveler in ${trip.currency}. The activity budget is the maximum for the whole group across all days after estimated airfare, lodging, meals, and transport. Prefer free or low-cost places where needed and include required activity fees in the estimate. The location must be a real, searchable place near the destination in the Philippines, with enough detail for Google Maps to identify it. Vary places and activities based on the trip interests. Do not claim live pricing or availability. Trip: ${JSON.stringify({ destination: destinationLocation(trip.destination), departure: trip.departure, returnDate: trip.returnDate, travelers: trip.travelers, activityBudget, currency: trip.currency, interests: trip.interests || [] })}`;
   const request = {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
@@ -36,8 +53,7 @@ async function generateItinerary(trip) {
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, request);
       if (!response.ok) {
-        const details = await response.text();
-        lastError = new Error(`Gemini request failed with status ${response.status}: ${details.slice(0, 240)}`);
+        lastError = new Error(`Gemini request failed with status ${response.status}.`);
         if (![429, 500, 502, 503, 504].includes(response.status)) throw lastError;
       } else {
         const payload = await response.json();

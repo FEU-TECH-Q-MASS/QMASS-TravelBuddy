@@ -4,11 +4,24 @@ const { trips } = require("../store");
 const enabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
 const client = enabled ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-async function saveTrip(trip) {
+async function saveTrip(trip, expectedUpdatedAt) {
+  if (expectedUpdatedAt !== undefined) {
+    if (client) {
+      const { data, error } = await client.from("travelbuddy_saved_trips")
+        .update({ payload: trip, updated_at: trip.updatedAt })
+        .eq("id", trip.id).eq("owner_id", trip.ownerId).eq("updated_at", expectedUpdatedAt)
+        .select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+    } else {
+      const current = trips.get(trip.id);
+      if (current?.ownerId !== trip.ownerId || current.updatedAt !== expectedUpdatedAt) return null;
+    }
+  } else if (client) {
+    const { error } = await client.from("travelbuddy_saved_trips").upsert({ id: trip.id, owner_id: trip.ownerId, payload: trip, created_at: trip.createdAt, updated_at: trip.updatedAt }, { onConflict: "id" });
+    if (error) throw error;
+  }
   trips.set(trip.id, trip);
-  if (!client) return trip;
-  const { error } = await client.from("travelbuddy_saved_trips").upsert({ id: trip.id, owner_id: trip.ownerId, payload: trip, created_at: trip.createdAt, updated_at: trip.updatedAt }, { onConflict: "id" });
-  if (error) throw error;
   return trip;
 }
 

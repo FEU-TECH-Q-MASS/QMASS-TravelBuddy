@@ -7,13 +7,15 @@ import DestinationField from "@/components/DestinationField";
 import TripOptionField from "@/components/TripOptionField";
 import TripTransport from "@/components/TripTransport";
 import Icon from "@/components/Icon";
-import { minimumBudgets, tripCurrency } from "@/lib/tripPlanning";
+import { lastTripDate, maxTripDays, minimumBudgets, todayInPhilippines, tripCurrency } from "@/lib/tripPlanning";
 
 export default function TripEditForm({ trip, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const currency = trip.currency || tripCurrency;
   const [departure, setDeparture] = useState(trip.departure);
+  const today = todayInPhilippines();
+  const earliestDeparture = departure === trip.departure && departure < today ? departure : today;
   const [origin, setOrigin] = useState(() => findDestination(trip.origin)?.airport || trip.origin);
   const [destination, setDestination] = useState(() => findDestination(trip.destination)?.code || trip.destination);
   const transport = getTripTransport(origin, destination);
@@ -26,7 +28,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      const { trip: updated } = await api(`/trips/${trip.id}`, {
+      const { trip: updated, generateItinerary } = await api(`/trips/${trip.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           origin, destination,
@@ -35,7 +37,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
           includeFlights: data.get("includeFlights") === "on",
         }),
       });
-      onSave(updated);
+      onSave(updated, generateItinerary);
     } catch (e) {
       setError(e.message);
       setSaving(false);
@@ -45,7 +47,7 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
   return (
     <form onSubmit={save} className="mt-5 border-t border-slate-100 pt-5" aria-label={`Edit trip to ${trip.destination}`}>
       <h4 className="flex items-center gap-2 font-semibold text-brand-900"><Icon name="edit" size={16} /> Edit trip</h4>
-      <p className="mt-2 text-xs leading-5 text-slate-500">Saving rebuilds your itinerary preview, routes, and estimates using these details. Trips can be up to 14 days.</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">Changing the destination or dates starts a new AI itinerary. Trips can be up to {maxTripDays} days, including both travel dates.</p>
       <fieldset disabled={saving} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 disabled:opacity-60">
         <TripOptionField id={fieldId("origin")} label="Starting point" placeholder="Choose starting point"
           options={startingPoints} value={origin} onChange={setOrigin} />
@@ -53,11 +55,11 @@ export default function TripEditForm({ trip, onSave, onCancel }) {
         {transport && <div className="sm:col-span-2"><TripTransport origin={origin} destination={destination} /></div>}
         <div>
           <label htmlFor={fieldId("departure")} className="field-label">Departure</label>
-          <input id={fieldId("departure")} name="departure" type="date" value={departure} onChange={(e) => setDeparture(e.target.value)} required className="input" />
+          <input id={fieldId("departure")} name="departure" type="date" min={earliestDeparture} defaultValue={trip.departure} onInput={(event) => setDeparture(event.currentTarget.value)} required className="input" />
         </div>
         <div>
           <label htmlFor={fieldId("returnDate")} className="field-label">Return date</label>
-          <input id={fieldId("returnDate")} name="returnDate" type="date" defaultValue={trip.returnDate} min={departure} required className="input" />
+          <input id={fieldId("returnDate")} name="returnDate" type="date" defaultValue={trip.returnDate} min={departure} max={lastTripDate(departure)} required className="input" />
         </div>
         <div>
           <label htmlFor={fieldId("travelers")} className="field-label">Travelers</label>

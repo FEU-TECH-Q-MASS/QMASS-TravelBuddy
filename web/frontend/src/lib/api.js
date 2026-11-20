@@ -11,3 +11,10 @@ export function getToken() {
 export function saveToken() { /* Supabase manages the session. */ }
 export function clearToken() { getSupabaseClient().auth.signOut(); }
 export const api = apiFetch;
+
+export function generateSavedItinerary(trip, reason) {
+  return api(`/trips/${trip.id}/generate`, {
+    method: "POST",
+    body: JSON.stringify({ reason, updatedAt: trip.updatedAt }),
+  });
+}

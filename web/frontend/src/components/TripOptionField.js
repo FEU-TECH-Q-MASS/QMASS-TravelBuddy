@@ -18,10 +18,18 @@ function getPlacement(field, header) {
 export default function TripOptionField({ id, label, placeholder, options, value, onChange, error }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [query, setQuery] = useState("");
   const [placement, setPlacement] = useState({ above: false, space: 400 });
   const field = useRef(null);
+  const input = useRef(null);
   const list = useRef(null);
-  const selectedIndex = options.findIndex(([code]) => code === value);
+  const selected = options.find(([code]) => code === value);
+  const terms = query.toLowerCase().trim().split(/\s+/);
+  const matches = options.filter((option) => {
+    const text = option.join(" ").toLowerCase();
+    return terms.every((term) => text.includes(term));
+  });
+  const activeIndex = Math.min(active, matches.length - 1);
   const listId = `${id}-options`;
 
   useEffect(() => {
@@ -48,22 +56,25 @@ export default function TripOptionField({ id, label, placeholder, options, value
   useEffect(() => {
     if (!open) return;
     const viewport = list.current;
-    const row = viewport.children[active];
+    const row = viewport.children[activeIndex];
+    if (!row) return;
     if (row.offsetTop < viewport.scrollTop) {
       viewport.scrollTop = row.offsetTop;
     } else if (row.offsetTop + row.offsetHeight > viewport.scrollTop + viewport.clientHeight) {
       viewport.scrollTop = row.offsetTop + row.offsetHeight - viewport.clientHeight;
     }
-  }, [active, open]);
+  }, [activeIndex, query, open]);
 
-  function show(index = Math.max(selectedIndex, 0)) {
+  function show(index = Math.max(options.findIndex(([code]) => code === value), 0)) {
     setPlacement(getPlacement(field.current, document.querySelector(".site-header")));
+    setQuery("");
     setActive(index);
     setOpen(true);
   }
 
   function choose(index) {
-    onChange(options[index][0]);
+    if (!matches[index]) return;
+    onChange(matches[index][0]);
     setOpen(false);
   }
 
@@ -73,20 +84,15 @@ export default function TripOptionField({ id, label, placeholder, options, value
       case "ArrowUp": {
         event.preventDefault();
         const direction = event.key === "ArrowDown" ? 1 : -1;
-        if (open) setActive(Math.min(options.length - 1, Math.max(0, active + direction)));
-        else show(selectedIndex >= 0 || direction > 0 ? Math.max(0, selectedIndex) : options.length - 1);
+        if (open) setActive(Math.max(0, Math.min(matches.length - 1, activeIndex + direction)));
+        else if (selected || direction > 0) show();
+        else show(options.length - 1);
         break;
       }
-      case "Home":
-      case "End":
-        event.preventDefault();
-        show(event.key === "Home" ? 0 : options.length - 1);
-        break;
       case "Enter":
-      case " ":
         if (open) {
           event.preventDefault();
-          choose(active);
+          choose(activeIndex);
         }
         break;
       case "Escape":
@@ -101,26 +107,41 @@ export default function TripOptionField({ id, label, placeholder, options, value
   return (
     <div className="relative min-w-0" ref={field}>
       <label id={`${id}-label`} htmlFor={id} className="field-label">{label}</label>
-      <button type="button" id={id} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined}
-        aria-labelledby={`${id}-label`} aria-required="true" aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
-        aria-activedescendant={open ? `${listId}-${active}` : undefined} className="input mt-2 flex items-center justify-between gap-2 text-left"
-        onClick={() => open ? setOpen(false) : show()} onBlur={() => setOpen(false)} onKeyDown={handleKey}>
-        <span className="truncate">{options[selectedIndex]?.[1] || placeholder}</span>
-        <span aria-hidden="true" className="mr-0.5 size-2 shrink-0 -translate-y-0.5 rotate-45 border-r border-b border-slate-500" />
-      </button>
+      <div className="relative mt-2">
+        <input ref={input} id={id} type="text" role="combobox" autoComplete="off" aria-autocomplete="list"
+          aria-expanded={open} aria-controls={open ? listId : undefined} aria-required="true"
+          aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
+          aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+          className="input pr-10" value={open ? query : selected?.[1] || ""}
+          placeholder={open ? "Search by name or airport code" : placeholder}
+          onFocus={(event) => { if (!open) event.target.select(); }}
+          onClick={() => { if (!open) show(); }} onBlur={() => setOpen(false)} onKeyDown={handleKey}
+          onChange={(event) => {
+            event.stopPropagation();
+            if (!open) show(0);
+            setQuery(event.target.value);
+            setActive(0);
+          }} />
+        <button type="button" tabIndex={-1} aria-label={`${open ? "Hide" : "Show"} ${label.toLowerCase()} options`}
+          className="absolute inset-y-0 right-0 grid w-10 place-items-center" onMouseDown={(event) => event.preventDefault()}
+          onClick={() => { input.current.focus(); if (open) setOpen(false); else show(); }}>
+          <span aria-hidden="true" className="size-2 -translate-y-0.5 rotate-45 border-r border-b border-slate-500" />
+        </button>
+      </div>
       {open && (
         <div className={`absolute inset-x-0 z-20 rounded-xl border border-slate-200 bg-white p-1 shadow-lg ${placement.above ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <ul id={listId} ref={list} role="listbox" aria-labelledby={`${id}-label`}
             className="relative overflow-y-auto overscroll-contain"
             style={{ maxHeight: `min(${visibleOptions * 2.5}rem, ${placement.space}px)` }}>
-            {options.map(([code, name], index) => (
-              <li id={`${listId}-${index}`} key={code} role="option" aria-selected={index === selectedIndex}
-                className={`flex h-10 cursor-pointer items-center rounded-lg px-2 text-sm leading-4 hover:bg-brand-50 ${index === active ? "bg-brand-50 text-brand-900" : "text-slate-700"} ${index === selectedIndex ? "font-semibold" : ""}`}
+            {matches.map(([code, name], index) => (
+              <li id={`${listId}-${index}`} key={code} role="option" aria-selected={code === value}
+                className={`flex h-10 cursor-pointer items-center rounded-lg px-2 text-sm leading-4 hover:bg-brand-50 ${index === activeIndex ? "bg-brand-50 text-brand-900" : "text-slate-700"} ${code === value ? "font-semibold" : ""}`}
                 onMouseDown={(event) => event.preventDefault()} onClick={() => choose(index)}>
                 <span className="line-clamp-2" title={name}>{name}</span>
               </li>
             ))}
           </ul>
+          {!matches.length && <p role="status" className="px-2 py-3 text-sm text-slate-600">No matching options.</p>}
         </div>
       )}
       {error && <span id={`${id}-error`} className="mt-2 block text-xs text-red-700">{error}</span>}

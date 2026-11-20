@@ -7,7 +7,32 @@ const { refreshTravelData } = require("../services/travel-data.service");
 const { getTravelConditions } = require("../services/travelConditionsService");
 const { z } = require("zod");
 const { findDestination } = require("../../../shared/destinations.cjs");
+const { todayInPhilippines, validateTripDates } = require("../../../shared/tripDates.cjs");
+const { getTripTransport } = require("../../../shared/transport.cjs");
 const { currencies, tripCurrency, minimumBudgets, maxTravelers, validateTravelers, validateBudget } = require("../../../shared/tripNumbers.cjs");
+const { updateTripEstimate } = require("../services/trip-budget.service");
+
+const itineraryRequests = new Set();
+const generationInput = z.object({
+  reason: z.enum(["schedule", "budget"]).default("schedule"),
+  updatedAt: z.iso.datetime().optional(),
+});
+
+function tripChanged(res) {
+  return res.status(409).json({ error: { code: "TRIP_CHANGED", message: "This trip changed while you were working. Open the workspace again to see the latest trip." } });
+}
+
+function saveTripUpdate(updated, previous) {
+  const previousTime = Date.parse(previous.updatedAt) || 0;
+  updated.updatedAt = new Date(Math.max(Date.now(), previousTime + 1)).toISOString();
+  return saveTrip(updated, previous.updatedAt);
+}
+
+function tripDateError(input, previous) {
+  const earliestDeparture = input.departure === previous?.departure ? undefined : todayInPhilippines();
+  const { errors } = validateTripDates(input.departure, input.returnDate, earliestDeparture);
+  return errors.departure || errors.returnDate;
+}
 
 function resolveTripLocations(input, previous) {
   const origin = findDestination(input.origin);
@@ -28,16 +53,14 @@ const tripEditSchema = z.object({
   currency: z.enum(currencies),
   budget: z.union([z.number(), z.string()]),
   includeFlights: z.boolean(),
-}).refine((input) => input.returnDate >= input.departure, "Return date must be on or after departure.")
-  .refine((input) => (Date.parse(input.returnDate) - Date.parse(input.departure)) / 86400000 < 14, "Trips can be up to 14 days.")
-  .transform((input, context) => {
-    const budget = input.currency === tripCurrency ? validateBudget(input.budget) : { value: Number(input.budget) };
-    if (budget.error || !Number.isFinite(budget.value) || budget.value < minimumBudgets[input.currency]) {
-      context.addIssue({ code: "custom", path: ["budget"], message: budget.error || "Enter a valid budget for this currency." });
-      return z.NEVER;
-    }
-    return { ...input, budget: budget.value };
-  });
+}).transform((input, context) => {
+  const budget = input.currency === tripCurrency ? validateBudget(input.budget) : { value: Number(input.budget) };
+  if (budget.error || !Number.isFinite(budget.value) || budget.value < minimumBudgets[input.currency]) {
+    context.addIssue({ code: "custom", path: ["budget"], message: budget.error || "Enter a valid budget for this currency." });
+    return z.NEVER;
+  }
+  return { ...input, budget: budget.value };
+});
 
 router.get("/", (req, res, next) => {
   if (!req.headers.authorization) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Endpoint not found." } });
@@ -53,8 +76,8 @@ router.post("/", async (req, res, next) => {
     if (!input.origin || !input.destination || !input.departure || !input.returnDate) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Origin, destination, and dates are required." } });
     const travelers = validateTravelers(input.travelers);
     const budget = validateBudget(input.budget, input.currency);
-    const numberError = travelers.error || budget.error;
-    if (numberError) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: numberError } });
+    const validationError = tripDateError(input) || travelers.error || budget.error;
+    if (validationError) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: validationError } });
     const locations = resolveTripLocations(input);
     if (locations.error) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: locations.error } });
     const trip = await saveTrip(enrichTrip({ ...input, ...locations, travelers: travelers.value, budget: budget.value, currency: tripCurrency }, req.user.id));
@@ -66,7 +89,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const trip = await getTrip(req.params.id, req.user.id);
     if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
-    res.json({ trip });
+    res.json({ trip: trip.estimateBasis ? trip : updateTripEstimate({ ...trip }) });
   } catch (error) { next(error); }
 });
 
@@ -80,29 +103,63 @@ router.patch("/:id", async (req, res, next) => {
     }
     const parsed = tripEditSchema.safeParse({ ...req.body, currency });
     if (!parsed.success) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } });
+    const dateError = tripDateError(parsed.data, old);
+    if (dateError) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: dateError } });
     const locations = resolveTripLocations(parsed.data, old);
     if (locations.error) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: locations.error } });
-    const trip = enrichTrip({ ...parsed.data, ...locations, interests: old.interests || [] }, req.user.id, old.id);
-    trip.createdAt = old.createdAt;
-    await saveTrip(trip);
-    res.json({ trip });
+    const changes = { ...parsed.data, ...locations };
+    const rebuild = changes.destination !== old.destination || changes.departure !== old.departure || changes.returnDate !== old.returnDate;
+    const trip = rebuild
+      ? {
+        ...enrichTrip({ ...changes, interests: old.interests || [] }, req.user.id, old.id),
+        createdAt: old.createdAt,
+        itineraryUpdate: { reason: "schedule", status: "pending" },
+      }
+      : updateTripEstimate({
+        ...old,
+        ...changes,
+        includeFlights: Boolean(changes.includeFlights && getTripTransport(changes.origin, changes.destination)?.route),
+        itineraryUpdate: old.itineraryUpdate?.reason === "budget" ? null : old.itineraryUpdate,
+      });
+    if (!await saveTripUpdate(trip, old)) return tripChanged(res);
+    res.json({ trip, generateItinerary: rebuild });
   } catch (error) { next(error); }
 });
 
-router.post("/:id/generate", async (req, res) => {
+router.post("/:id/generate", async (req, res, next) => {
   const trip = await getTrip(req.params.id, req.user.id);
   if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
-  trip.status = "generating";
+  const input = generationInput.safeParse(req.body ?? {});
+  if (!input.success) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Choose a valid itinerary generation request." } });
+  const { reason, updatedAt } = input.data;
+  if (updatedAt !== undefined && updatedAt !== trip.updatedAt) return tripChanged(res);
+  if (itineraryRequests.has(trip.id)) {
+    return res.status(409).json({ error: { code: "GENERATION_IN_PROGRESS", message: "An itinerary update is already in progress. Check the workspace shortly." } });
+  }
+  itineraryRequests.add(trip.id);
   try {
-    const result = await generateItinerary(trip);
-    applyItinerary(trip, result.itinerary, { provider: result.provider, model: result.model, generatedAt: result.generatedAt });
-    trip.status = "ready";
-    await saveTrip(trip);
-    res.json({ trip });
+    const current = trip.estimateBasis ? trip : updateTripEstimate({ ...trip });
+    const { remaining, activities } = current.budgetBreakdown;
+    if (reason === "budget" && remaining >= 0) return res.json({ trip: current });
+
+    let updated = { ...current, itineraryUpdate: { reason, status: "failed" } };
+    if (reason === "budget" && Math.round(remaining * 100) + Math.round(activities * 100) < 0) {
+      updated.itineraryUpdate.status = "fixed-costs";
+    } else {
+      const result = await generateItinerary(current).catch(() => null);
+      if (result?.provider === "google-gemini") {
+        const { itinerary, provider, model, generatedAt } = result;
+        const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt });
+        if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
+        else updated = candidate;
+      }
+    }
+    if (!await saveTripUpdate(updated, trip)) return tripChanged(res);
+    res.json({ trip: updated });
   } catch (error) {
-    trip.status = "ready";
-    await saveTrip(trip);
-    res.status(502).json({ error: { code: "GENERATION_FAILED", message: error.message || "Itinerary generation failed." } });
+    next(error);
+  } finally {
+    itineraryRequests.delete(trip.id);
   }
 });
 
@@ -111,9 +168,9 @@ router.post("/:id/refresh-conditions", async (req, res, next) => {
     const trip = await getTrip(req.params.id, req.user.id);
     if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
     const conditions = await getTravelConditions(trip);
-    const updated = { ...trip, conditions, updatedAt: new Date().toISOString() };
-    await saveTrip(updated);
-    res.json({ trip: updated });
+    const updated = { ...trip, conditions };
+    if (!await saveTripUpdate(updated, trip)) return tripChanged(res);
+    res.json({ trip: updated.estimateBasis ? updated : updateTripEstimate({ ...updated }) });
   } catch (error) { next(error); }
 });
 
@@ -121,13 +178,10 @@ router.post("/:id/refresh-data", async (req, res) => {
   const trip = await getTrip(req.params.id, req.user.id);
   if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
   try {
-    const data = await refreshTravelData({ ...trip, ...req.body });
-    trip.offers = data.offers;
-    trip.conditions = data.conditions;
-    trip.providerStatus = data.providers;
-    trip.updatedAt = new Date().toISOString();
-    await saveTrip(trip);
-    res.json({ trip });
+    const data = await refreshTravelData(trip);
+    const updated = updateTripEstimate({ ...trip, offers: data.offers, conditions: data.conditions, providerStatus: data.providers });
+    if (!await saveTripUpdate(updated, trip)) return tripChanged(res);
+    res.json({ trip: updated });
   } catch (error) { res.status(502).json({ error: { code: "PROVIDER_REFRESH_FAILED", message: error.message } }); }
 });
 
@@ -139,7 +193,10 @@ router.post("/:id/regenerate", async (req, res, next) => {
     if (req.body?.currency !== undefined && req.body.currency !== currency) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Keep the saved trip’s original budget currency." } });
     }
-    const replacement = await saveTrip(enrichTrip({ ...old, ...req.body, currency }, req.user.id));
+    const input = { ...old, ...req.body, currency };
+    const dateError = tripDateError(input, old);
+    if (dateError) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: dateError } });
+    const replacement = await saveTrip(enrichTrip(input, req.user.id));
     await deleteTrip(old.id, req.user.id);
     res.json({ trip: replacement });
   } catch (error) { next(error); }
