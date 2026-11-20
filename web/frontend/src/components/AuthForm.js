@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Icon from "@/components/Icon";
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { authHref } from "@/lib/tripPlannerNavigation";
 const passwordRules = [
   ["At least 8 characters", (value) => value.length >= 8],
   [
@@ -21,7 +21,7 @@ function confirmPasswordError(password, confirmation) {
   if (password !== confirmation) return "Your passwords must match.";
 }
 
-export default function AuthForm({ mode }) {
+export default function AuthForm({ mode, next = "/dashboard" }) {
   const signup = mode === "signup";
   const recovery = mode === "recovery";
   const [visible, setVisible] = useState({
@@ -35,7 +35,6 @@ export default function AuthForm({ mode }) {
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   async function submit(event) {
     event.preventDefault();
     if (loading) return;
@@ -72,12 +71,12 @@ export default function AuthForm({ mode }) {
       } else if (signup) {
         const { data, error } = await supabase.auth.signUp({ email: values.email, password: values.password, options: { data: { display_name: `${values.firstName} ${values.lastName}`.trim() } } });
         if (error) throw error;
-        if (data.session) router.replace("/dashboard");
+        if (data.session) window.location.replace(next);
         else setNotice("Account created. Check your email to confirm your account.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: values.email, password: values.password });
         if (error) throw error;
-        router.replace("/dashboard");
+        window.location.replace(next);
       }
     } catch (error) {
       setNotice(recovery ? "If an account exists for that email, a reset link has been sent." : signup ? error.message || "Unable to create your account." : "Invalid email or password");
@@ -196,14 +195,14 @@ export default function AuthForm({ mode }) {
         ) : signup ? (
           <>
             Already have an account?{" "}
-            <Link href="/login" className="text-link">
+            <Link href={authHref("/login", next)} className="text-link">
               Log in
             </Link>
           </>
         ) : (
           <>
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-link">
+            <Link href={authHref("/signup", next)} className="text-link">
               Sign up
             </Link>
           </>

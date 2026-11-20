@@ -34,7 +34,7 @@ export default function AuthShell({ children }) {
       <div className="flex items-center justify-center py-5 sm:px-8">
         <div className="w-full max-w-md">
           <Link
-            href="/"
+            href="/#home"
             className="mb-9 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-700"
           >
             <span className="rotate-180">

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTripSummary } from "../src/lib/tripPlanning.js";
+import { authHref, newTripHref, tripAuthDestination, tripDestinationCode } from "../src/lib/tripPlannerNavigation.js";
 
 test("budget respects the currency's minor units", () => {
   assert.equal(createTripSummary({ ...input, budget: "0.001" }, "2027-01-01").summary, null);
@@ -64,4 +65,24 @@ test("invalid budget, currency, traveler count, and blank destinations are rejec
       null,
     );
   }
+});
+
+test("a new trip only preselects a recognized destination", () => {
+  assert.equal(tripDestinationCode(""), "");
+  assert.equal(tripDestinationCode("Unknown"), "");
+  assert.equal(tripDestinationCode("Cebu"), "CEB");
+  assert.equal(tripDestinationCode("bOh"), "BOH");
+  assert.equal(newTripHref(), "/trips/new");
+  assert.equal(newTripHref({ destination: "Bohol" }), "/trips/new?destination=BOH");
+});
+
+test("auth can resume the new trip page and uses the dashboard for other targets", () => {
+  const trip = newTripHref({ destination: "CEB", draft: true });
+  const loginUrl = new URL(authHref("/login", trip), "https://travelbuddy.example");
+  assert.equal(tripAuthDestination(loginUrl.searchParams.get("next")), trip);
+  for (const invalid of [null, "//example.com/trips/new", "https://example.com/trips/new", "/trips/other", "/admin/users"]) {
+    assert.equal(tripAuthDestination(invalid), "/dashboard");
+  }
+  assert.equal(authHref("/login", "/dashboard"), "/login");
+  assert.equal(tripAuthDestination("/trips/new?destination=unknown&draft=2"), "/trips/new");
 });

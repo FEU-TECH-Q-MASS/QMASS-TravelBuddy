@@ -23,6 +23,8 @@ export default function AppShell({ children, copyrightYear }) {
   const current = profileResult?.userId === userId ? profileResult : null;
   const profile = current?.profile;
   const isAdmin = profile?.role === "admin";
+  const isTraveler = profile?.role === "traveler";
+  const homeHref = userId ? "/#home" : "/";
 
   useEffect(() => {
     if (!userId) return;
@@ -38,8 +40,15 @@ export default function AppShell({ children, copyrightYear }) {
   }, [userId, pathname]);
 
   useEffect(() => {
-    if (pathname === "/") signingOut.current = false;
-  }, [pathname]);
+    if (pathname !== "/" || loading) return;
+    if (!userId) {
+      signingOut.current = false;
+      return;
+    }
+    if (!signingOut.current && !window.location.search && !window.location.hash) {
+      router.replace("/dashboard");
+    }
+  }, [loading, pathname, router, userId]);
 
   async function signOut() {
     signingOut.current = true;
@@ -59,9 +68,9 @@ export default function AppShell({ children, copyrightYear }) {
 
   return (
     <SiteAuth.Provider value={auth}>
-      <Navbar user={user} isAdmin={isAdmin} onLogout={signOut} />
+      <Navbar user={user} isAdmin={isAdmin} isTraveler={isTraveler} homeHref={homeHref} onLogout={signOut} />
       <main id="main-content" tabIndex={-1}>{children}</main>
-      <Footer isAdmin={isAdmin} copyrightYear={copyrightYear} />
+      <Footer isAdmin={isAdmin} isTraveler={isTraveler} isSignedIn={Boolean(userId)} loading={loading} homeHref={homeHref} copyrightYear={copyrightYear} />
     </SiteAuth.Provider>
   );
 }

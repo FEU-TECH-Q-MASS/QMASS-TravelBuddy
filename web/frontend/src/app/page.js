@@ -3,6 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import SectionIntro from "@/components/SectionIntro";
 import TripPlanner from "@/components/TripPlanner";
+import TripPlanningLink from "@/components/TripPlanningLink";
 import DestinationCard from "@/components/DestinationCard";
 import Steps from "@/components/Steps";
 import SampleItinerary from "@/components/SampleItinerary";
@@ -18,7 +19,7 @@ export default async function HomePage({ searchParams }) {
       : "";
   return (
     <>
-      <section className="relative mx-auto min-h-150 max-w-[1800px] overflow-hidden bg-brand-900 pb-30 sm:min-h-160">
+      <section id="home" className="relative mx-auto min-h-150 max-w-[1800px] scroll-mt-22 overflow-hidden bg-brand-900 pb-30 sm:min-h-160">
         <Image
           src="/images/palawan-coron-lagoon.jpg"
           alt="Blue-green waters and limestone islands in Palawan, Philippines"
@@ -40,9 +41,9 @@ export default async function HomePage({ searchParams }) {
             little details together and make room for the memories.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-6">
-            <a href="#plan-trip" className="btn btn-primary">
+            <TripPlanningLink destination={initialDestination} className="btn btn-primary">
               Start Planning <Icon />
-            </a>
+            </TripPlanningLink>
             <Link
               href="/how-it-works"
               className="inline-flex items-center gap-2 text-sm font-semibold text-white underline-offset-4 hover:underline"

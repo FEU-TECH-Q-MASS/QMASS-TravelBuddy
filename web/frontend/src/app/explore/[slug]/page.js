@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import DestinationCard from "@/components/DestinationCard";
+import TripPlanningLink from "@/components/TripPlanningLink";
 import { destinations, getDestinationsWithImages } from "@/lib/destinations";
 
 export function generateStaticParams() {
@@ -94,12 +95,12 @@ export default async function DestinationPage({ params }) {
             Start with your dates, budget, and interests. We&apos;ll help you
             preview your trip preferences.
           </p>
-          <Link
-            href={`/?destination=${encodeURIComponent(destination.name)}#plan-trip`}
+          <TripPlanningLink
+            destination={destination.name}
             className="btn btn-primary mt-6 w-full"
           >
             Plan a trip here <Icon size={17} />
-          </Link>
+          </TripPlanningLink>
           <p className="mt-4 text-xs leading-6 text-slate-500">
             Editorial inspiration only. Check official travel advice and local
             conditions. Live itinerary generation is not connected yet.

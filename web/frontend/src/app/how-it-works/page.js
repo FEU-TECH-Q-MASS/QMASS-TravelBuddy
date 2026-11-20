@@ -3,6 +3,7 @@ import Link from "next/link";
 import SectionIntro from "@/components/SectionIntro";
 import SampleItinerary from "@/components/SampleItinerary";
 import ClosingCta from "@/components/ClosingCta";
+import TripPlanningLink from "@/components/TripPlanningLink";
 import Icon from "@/components/Icon";
 
 export const metadata = { title: "How it works" };
@@ -50,7 +51,7 @@ export default function HowItWorksPage() {
             <h1 className="page-title">From a travel idea<br />to <span className="serif-accent text-brand-700">a plan of your own.</span></h1>
             <p className="mt-6 max-w-lg text-base leading-8 text-slate-500">Choose a place. Set your pace. Bring your dates, budget, and interests together in one place, with room for a little discovery.</p>
             <div className="mt-8 flex flex-wrap items-center gap-5">
-              <Link href="/#plan-trip" className="btn btn-dark">Start planning <Icon name="arrow" size={17} /></Link>
+              <TripPlanningLink className="btn btn-dark">Start planning <Icon name="arrow" size={17} /></TripPlanningLink>
               <a href="#the-process" className="text-link text-sm">See the steps <Icon name="chevron" size={15} /></a>
             </div>
             <p className="mt-5 flex items-center gap-2 text-xs text-slate-500"><Icon name="check" size={14} className="text-brand-700" /> No account needed to try the trip preview</p>
@@ -115,7 +116,7 @@ export default function HowItWorksPage() {
             <SectionIntro eyebrow="The details make the difference" title={<>A little thought.<br /><span className="serif-accent">A more personal journey.</span></>}>
               A good plan connects more than places. It helps you see how your time, budget, and interests fit together.
             </SectionIntro>
-            <Link href="/#plan-trip" className="text-link mt-7">Make a plan that feels like you <Icon name="arrow" size={16} /></Link>
+            <TripPlanningLink className="text-link mt-7">Make a plan that feels like you <Icon name="arrow" size={16} /></TripPlanningLink>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {details.map(([icon, title, text]) => (

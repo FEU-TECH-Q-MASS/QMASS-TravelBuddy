@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-export default function Logo({ onClick }) {
+export default function Logo({ href, onClick }) {
   return (
-    <Link href="/" aria-label="TravelBuddy home" className="brand-logo" onClick={onClick}>
+    <Link href={href} aria-label="TravelBuddy home" className="brand-logo" onClick={onClick}>
       <Image
         src="/images/TravelBuddy.png"
         alt=""

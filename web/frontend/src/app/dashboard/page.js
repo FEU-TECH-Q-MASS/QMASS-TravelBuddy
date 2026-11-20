@@ -10,6 +10,7 @@ import Icon from "@/components/Icon";
 import { useSiteAuth } from "@/components/layout/AppShell";
 import TripEditForm from "@/components/TripEditForm";
 import { resolveTravelLocation } from "@/lib/travelOptions";
+import { newTripPath } from "@/lib/tripPlannerNavigation";
 
 const destinationImages = {
   MNL: "manila.jpg", CEB: "cebu.jpg", DGT: "dumaguete.jpg",
@@ -94,7 +95,7 @@ function TravelerDashboard({ user, onLogout }) {
           <p className="mb-5 flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-cyan-200 uppercase"><Icon name="compass" size={16} /> Your travel desk</p>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight text-white sm:text-5xl">Welcome{user?.display_name ? `, ${user.display_name.split(" ")[0]}` : " back"}.</h1>
           <p className="mt-4 max-w-md text-sm leading-7 text-white/80 sm:text-base">A little planning. A lot to look forward to.<br />Your next Philippine adventure starts here.</p>
-          <Link href="/#plan-trip" className="btn btn-primary mt-7 hover:shadow-sm hover:shadow-black/10"><Icon name="plus" size={18} /> Plan a new trip</Link>
+          <Link href={newTripPath} className="btn btn-primary mt-7 hover:shadow-sm hover:shadow-black/10"><Icon name="plus" size={18} /> Plan a new trip</Link>
         </div>
       </div>
 
@@ -131,7 +132,7 @@ function TravelerDashboard({ user, onLogout }) {
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Icon name="route" size={25} /></span>
             <h3 className="mt-5 text-xl font-semibold text-brand-900">Your next adventure belongs here.</h3>
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-500">Choose a destination, set your dates, and turn a travel idea into your own itinerary.</p>
-            <Link href="/#plan-trip" className="btn btn-dark mt-6">Plan your first trip <Icon name="arrow" size={16} /></Link>
+            <Link href={newTripPath} className="btn btn-dark mt-6">Plan your first trip <Icon name="arrow" size={16} /></Link>
           </div>
         ) : (
           <div className="mt-6 grid items-start gap-5 md:grid-cols-2">

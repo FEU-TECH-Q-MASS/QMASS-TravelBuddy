@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import Logo from "./Logo";
 import Icon from "@/components/Icon";
+import { newTripPath } from "@/lib/tripPlannerNavigation";
 const publicLinks = [
   ["/", "Home"],
   ["/explore", "Explore"],
@@ -17,12 +18,13 @@ const adminLinks = [
   ["/admin/support-messages", "Support messages"],
   ["/account", "My account"],
 ];
+const travelerLinks = [...publicLinks.slice(0, 2), [newTripPath, "Plan a trip"], ...publicLinks.slice(2)];
 
-export default function Navbar({ user, isAdmin, onLogout }) {
+export default function Navbar({ user, isAdmin, isTraveler, homeHref, onLogout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const toggle = useRef(null);
-  const links = isAdmin ? adminLinks : publicLinks;
+  const navigation = isAdmin ? adminLinks : isTraveler ? travelerLinks : publicLinks;
   const isActive = (href) =>
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   function closeMenu() {
@@ -41,15 +43,15 @@ export default function Navbar({ user, isAdmin, onLogout }) {
         Skip to content
       </a>
       <div className="page-width flex min-h-22 items-center justify-between gap-8">
-        <Logo onClick={closeMenu} />
+        <Logo href={homeHref} onClick={closeMenu} />
         <nav
           aria-label="Main navigation"
           className="hidden items-center gap-7 lg:flex"
         >
-          {links.map(([href, label]) => (
+          {navigation.map(([href, label]) => (
             <Link
               key={href}
-              href={href}
+              href={href === "/" ? homeHref : href}
               aria-current={pathname === href ? "page" : undefined}
               className={`nav-link ${isActive(href) ? "active" : ""}`}
             >
@@ -76,10 +78,10 @@ export default function Navbar({ user, isAdmin, onLogout }) {
           aria-label="Mobile navigation"
           className="page-width border-t border-slate-100 py-5 lg:hidden"
         >
-          {links.map(([href, label]) => (
+          {navigation.map(([href, label]) => (
             <Link
               key={href}
-              href={href}
+              href={href === "/" ? homeHref : href}
               onClick={closeMenu}
               aria-current={pathname === href ? "page" : undefined}
               className={`block rounded-lg px-3 py-3 font-medium ${isActive(href) ? "bg-cyan-50 text-cyan-800" : "text-slate-700"}`}

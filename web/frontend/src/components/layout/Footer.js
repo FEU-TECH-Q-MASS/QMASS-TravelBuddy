@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Logo from "./Logo";
 import Icon from "@/components/Icon";
-export default function Footer({ isAdmin, copyrightYear }) {
+import { newTripPath } from "@/lib/tripPlannerNavigation";
+export default function Footer({ isAdmin, isTraveler, isSignedIn, loading, homeHref, copyrightYear }) {
   return (
     <footer className="border-t border-slate-100 bg-slate-50 pt-14">
       <div className="page-width grid gap-10 pb-12 md:grid-cols-[2fr_1fr_1fr]">
         <div>
-          <Logo />
+          <Logo href={homeHref} />
           <p className="mt-4 max-w-sm text-sm leading-7 text-slate-600">
             A little planning. A world of possibility.
             <br />
@@ -27,7 +28,7 @@ export default function Footer({ isAdmin, copyrightYear }) {
               <>
                 <Link href="/explore">Explore destinations</Link>
                 <Link href="/how-it-works">How it works</Link>
-                <Link href="/#plan-trip">Start planning</Link>
+                {isTraveler ? <Link href={newTripPath}>Plan a trip</Link> : <Link href="/#plan-trip">Start planning</Link>}
               </>
             )}
           </div>
@@ -37,14 +38,16 @@ export default function Footer({ isAdmin, copyrightYear }) {
           <div className="footer-links">
             {isAdmin ? (
               <>
-                <Link href="/">Public site</Link>
+                <Link href={homeHref}>Public site</Link>
                 <Link href="/contact">Contact support</Link>
               </>
             ) : (
               <>
                 <Link href="/about">About the project</Link>
                 <Link href="/contact">Contact us</Link>
-                <Link href="/login">Log in</Link>
+                {isSignedIn ? (
+                  <Link href="/dashboard">Dashboard</Link>
+                ) : !loading && <Link href="/login">Log in</Link>}
               </>
             )}
           </div>

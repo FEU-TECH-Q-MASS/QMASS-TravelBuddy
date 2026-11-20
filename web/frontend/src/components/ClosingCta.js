@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Icon from "@/components/Icon";
+import TripPlanningLink from "@/components/TripPlanningLink";
 export default function ClosingCta() {
   return (
     <section className="page-width pb-20">
@@ -14,9 +14,9 @@ export default function ClosingCta() {
             adventure.
           </p>
         </div>
-        <Link href="/#plan-trip" className="btn btn-primary shrink-0">
+        <TripPlanningLink className="btn btn-primary shrink-0">
           Start Planning <Icon />
-        </Link>
+        </TripPlanningLink>
       </div>
     </section>
   );
