@@ -15,7 +15,7 @@ export default function TripWorkspace({ params }) {
 }
 function Summary({ label, value, detail }) { return <div className="rounded-2xl bg-white/10 p-4"><p className="text-xs text-white/60">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-white/60">{detail}</p></div>; }
 
-//Iteninerary block
+//Iteninerary block - had to do a quick refactor, it was hurting my head.
 function Itinerary({ trip }) {
   const [selectedDay, setSelectedDay] = useState(
     trip.itinerary[0]?.day || 1
