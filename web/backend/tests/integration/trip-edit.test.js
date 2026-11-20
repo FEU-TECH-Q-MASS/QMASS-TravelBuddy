@@ -50,12 +50,6 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(porac.destination, "0305415000");
   assert.equal(porac.itinerary[0].activities[0].location, "Porac, Pampanga, Philippines");
   assert.equal((await create({ ...input, destination: "0000000000" })).status, 400);
-  const venuePath = url.replace(original.id, porac.id) + "/venues/1";
-  const venues = await fetch(venuePath);
-  assert.equal(venues.status, 200);
-  assert.equal(venues.headers.get("Cache-Control"), "private, no-store");
-  assert.deepEqual(await venues.json(), { venues: {} });
-  assert.equal((await fetch(venuePath, { headers: { "x-test-user": "someone-else" } })).status, 404);
   for (const invalid of [
     { returnDate: "2026-11-29" }, { departure: "invalid" }, { returnDate: "2026-12-20" },
     { travelers: 0 }, { budget: 0 }, { currency: "INVALID" }, { destination: " " }, { destination: "PAL" },
@@ -116,34 +110,30 @@ test("editing a trip keeps its workspace, validates changes, and enforces owners
   assert.equal(failed.destination, trip.destination);
   assert.deepEqual(failed.itinerary, trip.itinerary);
 
-  const generatedPlan = (current, cost, venueLookup = true) => ({
-    provider: "google-gemini", model: "test", generatedAt: new Date().toISOString(), venueLookup,
+  const generatedPlan = (current, cost) => ({
+    provider: "google-gemini", model: "test", generatedAt: new Date().toISOString(),
     itinerary: current.itinerary.map((day) => ({
       ...day,
-      activities: [{
-        ...day.activities[0], title: "AI activity", cost, venueKind: "park",
-        placeId: venueLookup ? "test-venue" : undefined,
-      }],
+      activities: day.activities.slice(0, 1).map(({ id, time, durationMinutes }) => ({
+        id, time, durationMinutes, title: "Visit the Banaue Rice Terraces", cost,
+        location: "Banaue Rice Terraces, Banaue, Ifugao",
+      })),
     })),
   });
-  generate.mock.mockImplementation(async (current) => generatedPlan(current, 500, false));
-  const { trip: withoutVenues } = await (await generateFor(failed, "schedule")).json();
-  assert.equal(withoutVenues.itineraryUpdate, null);
-  assert.equal(withoutVenues.generation.venueLookup, false);
-  assert.equal(withoutVenues.itinerary[0].activities[0].venueKind, "park");
-
+  failed.itinerary[0].activities[0].placeId = "old-venue";
+  trips.set(failed.id, failed);
   generate.mock.mockImplementation(async (current) => generatedPlan(current, 500));
-  const successResponse = await generateFor(withoutVenues, "schedule");
+  const successResponse = await generateFor(failed, "schedule");
   assert.equal(successResponse.status, 200);
   const { trip: generated } = await successResponse.json();
   assert.equal(generated.itineraryUpdate, null);
   assert.equal(generated.generation.provider, "google-gemini");
-  assert.equal(generated.itinerary[0].activities[0].title, "AI activity");
-
-  generate.mock.mockImplementation(async (current) => generatedPlan(current, 500, false));
-  const { trip: preserved } = await (await generateFor(generated, "schedule")).json();
-  assert.equal(preserved.itineraryUpdate.status, "venues-unavailable");
-  assert.deepEqual(preserved.itinerary, generated.itinerary);
+  assert.equal(generated.itinerary[0].activities[0].title, "Visit the Banaue Rice Terraces");
+  assert.equal(generated.itinerary[0].activities[0].location, "Banaue Rice Terraces, Banaue, Ifugao");
+  assert.equal(generated.itinerary[0].activities[0].placeId, undefined);
+  assert.deepEqual(generated.routes[0].stops, [{
+    title: "Visit the Banaue Rice Terraces", location: "Banaue Rice Terraces, Banaue, Ifugao",
+  }]);
 
   const fixedCosts = generated.budgetBreakdown.estimatedTotal - generated.budgetBreakdown.activities;
   const updatedInput = { ...input, destination: trip.destination, returnDate: trip.returnDate, travelers: trip.travelers };

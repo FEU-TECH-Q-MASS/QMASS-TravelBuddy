@@ -3,7 +3,6 @@ const { requireAuth } = require("../middleware/auth.middleware");
 const { enrichTrip, applyItinerary } = require("../store");
 const { saveTrip, listTrips, getTrip, deleteTrip } = require("../services/trip-repository.service");
 const { generateItinerary } = require("../services/itinerary.service");
-const { getItineraryVenueDetails } = require("../services/itinerary-venues.service");
 const { refreshTravelData } = require("../services/travel-data.service");
 const { getTravelConditions } = require("../services/travelConditionsService");
 const { z } = require("zod");
@@ -301,16 +300,6 @@ router.get("/:id", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get("/:id/venues/:day", async (req, res, next) => {
-  try {
-    const trip = await getTrip(req.params.id, req.user.id);
-    const day = trip?.itinerary.find((item) => String(item.day) === req.params.day);
-    if (!day) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip day not found." } });
-    res.set("Cache-Control", "private, no-store");
-    res.json({ venues: await getItineraryVenueDetails(day.activities) });
-  } catch (error) { next(error); }
-});
-
 router.patch("/:id", async (req, res, next) => {
   try {
     const old = await getTrip(req.params.id, req.user.id);
@@ -366,15 +355,10 @@ router.post("/:id/generate", async (req, res, next) => {
     } else {
       const result = await generateItinerary(current).catch(() => null);
       if (result?.provider === "google-gemini") {
-        const { itinerary, provider, model, generatedAt, venueLookup } = result;
-        if (venueLookup === false && current.itinerary.some(({ activities }) =>
-          activities.some(({ placeId, venueSource }) => placeId || venueSource))) {
-          updated.itineraryUpdate.status = "venues-unavailable";
-        } else {
-          const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt, venueLookup });
-          if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
-          else updated = candidate;
-        }
+        const { itinerary, provider, model, generatedAt } = result;
+        const candidate = applyItinerary({ ...current, itineraryUpdate: null, status: "ready" }, itinerary, { provider, model, generatedAt });
+        if (reason === "budget" && candidate.budgetBreakdown.remaining < 0) updated.itineraryUpdate.status = "unfit";
+        else updated = candidate;
       }
     }
     if (!await saveTripUpdate(updated, trip)) return tripChanged(res);

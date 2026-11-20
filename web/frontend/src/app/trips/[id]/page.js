@@ -36,14 +36,13 @@ function formatTripDate(value) {
 }
 
 function itineraryUpdateMessage(update, busy, error) {
-  if (busy === "schedule") return "Planning your itinerary and looking up venues…";
+  if (busy === "schedule") return "Planning your itinerary…";
   if (busy === "budget") return "Looking for activities that fit your group budget…";
   if (error) return error;
-  if (update?.status === "pending") return "Generate an itinerary with local venue listings.";
+  if (update?.status === "pending") return "Generate an itinerary for your trip.";
   if (update?.status === "fixed-costs") return "Airfare, lodging, meals, and transport already exceed your budget. Edit your trip costs or budget before replanning.";
   if (update?.status === "unfit") return "Gemini did not find a plan within your estimated budget. Your existing itinerary is still saved.";
-  if (update?.status === "venues-unavailable") return "We couldn’t confirm venues for the new plan. Your existing itinerary is still saved.";
-  if (update?.status === "failed") return update.reason === "schedule"
+  if (update?.status === "failed" || update?.status === "venues-unavailable") return update.reason === "schedule"
     ? "We couldn’t generate an AI itinerary. Your existing plan is still saved."
     : "AI replanning was unavailable. Your existing itinerary is still saved.";
   return "";
@@ -161,8 +160,7 @@ export default function TripWorkspace({ params }) {
     try {
       const { trip: updated } = await generateSavedItinerary(savedTrip, reason);
       setTrip((current) => current?.id === updated.id ? updated : current);
-      if (!updated.itineraryUpdate) setSaved(updated.generation?.venueLookup === false
-        ? "AI itinerary saved. Venues are still unconfirmed." : "AI itinerary updated.");
+      if (!updated.itineraryUpdate) setSaved("AI itinerary updated.");
     } catch (e) {
       setGenerationError(e.message);
     } finally {
@@ -199,10 +197,9 @@ export default function TripWorkspace({ params }) {
   const { estimatedTotal, remaining } = trip.budgetBreakdown;
   const update = trip.itineraryUpdate;
   const generationStatus = itineraryUpdateMessage(update, generationReason, generationError);
-  const needsVenueLookup = trip.generation?.provider === "google-gemini" && !trip.generation.venueLookup;
-  const hasUnconfirmedVenues = needsVenueLookup && trip.generation.venueLookup === false;
-  const hideLegacyVenues = needsVenueLookup && !hasUnconfirmedVenues;
-  const canRetrySchedule = update?.reason === "schedule" || needsVenueLookup;
+  const hasCategoryItinerary = trip.generation?.provider === "google-gemini" &&
+    trip.itinerary.some(({ activities }) => activities.some(({ venueKind }) => venueKind));
+  const canGenerateSchedule = update?.reason === "schedule" || hasCategoryItinerary;
   const canReplanBudget = remaining < 0 && update?.reason !== "schedule" && update?.status !== "fixed-costs";
   const scheduleKey = `${trip.id}:${trip.destination}:${trip.departure}:${trip.returnDate}`;
 
@@ -271,16 +268,15 @@ async function testDuffelFlights() {
           if (shouldGenerate) void updateItinerary(updated, "schedule");
         }} />}
       </div>
-      {(generationStatus || saved || canRetrySchedule || canReplanBudget) && (
+      {(generationStatus || saved || canGenerateSchedule || canReplanBudget) && (
         <div className="notice mt-5 flex flex-wrap items-center justify-between gap-3">
-          <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || (needsVenueLookup
-            ? "Venues are still unconfirmed. Regenerate to look them up." : "Looking for a lower-cost itinerary?")}</p>
-          {(canRetrySchedule || canReplanBudget) && (
+          <p ref={itineraryNotice} tabIndex={-1} role="status">{generationStatus || saved || (hasCategoryItinerary
+            ? "Generate a new itinerary for more specific activities and locations." : "Looking for a lower-cost itinerary?")}</p>
+          {(canGenerateSchedule || canReplanBudget) && (
             <div className="flex flex-wrap gap-2">
-              {canRetrySchedule && <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
+              {canGenerateSchedule && <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
                 onClick={() => void updateItinerary(trip, "schedule")}>
-                {needsVenueLookup || update?.status === "venues-unavailable" ? "Regenerate with venues"
-                  : update?.status === "failed" || generationError ? "Retry AI generation" : "Generate AI itinerary"}
+                {generationError || (update?.reason === "schedule" && update.status !== "pending") ? "Retry AI generation" : "Generate AI itinerary"}
               </button>}
               {canReplanBudget && <button type="button" className="btn btn-outline" disabled={editing || refreshing || Boolean(generationReason)}
                 onClick={() => void updateItinerary(trip, "budget")}>
@@ -298,7 +294,7 @@ async function testDuffelFlights() {
       </div>
       {error && <p className="notice mt-5">{error}</p>}
       <div className="mt-8">
-        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} hideLegacyVenues={hideLegacyVenues} />}
+        {tab === "itinerary" && <Itinerary key={scheduleKey} trip={trip} />}
         {tab === "transport" && (
           <div>
             <h2 className="text-3xl font-semibold text-brand-900">Getting there</h2>
@@ -315,7 +311,7 @@ async function testDuffelFlights() {
         )}
         {tab === "hotels" && <Hotels trip={trip} />}
         {tab === "budget" && <Budget trip={trip} />}
-        {tab === "routes" && <Routes key={scheduleKey} trip={trip} needsVenueLookup={needsVenueLookup} />}
+        {tab === "routes" && <Routes key={scheduleKey} trip={trip} />}
         {tab === "conditions" && <div aria-busy={refreshing}>{refreshing && <p role="status" className="notice mb-5">Updating weather and travel conditions…</p>}<Conditions trip={trip} /></div>}
       </div>
     </section>
@@ -331,32 +327,7 @@ function Summary({ label, value, detail }) {
   );
 }
 
-function useDayVenues(trip, day) {
-  const path = day?.activities.some(({ placeId }) => placeId) ? `/trips/${trip.id}/venues/${day.day}` : null;
-  const key = path ? `${path}:${trip.generation?.generatedAt}` : null;
-  const [result, setResult] = useState(null);
-  useEffect(() => {
-    if (!path) return;
-    const controller = new AbortController();
-    api(path, { signal: controller.signal, cache: "no-store" })
-      .then(({ venues }) => { if (!controller.signal.aborted) setResult({ key, venues }); })
-      .catch(() => { if (!controller.signal.aborted) setResult({ key, venues: {} }); });
-    return () => controller.abort();
-  }, [key, path]);
-  return { venues: result?.key === key ? result.venues : {}, loading: Boolean(key && result?.key !== key) };
-}
-
-function VenueAttribution({ venues }) {
-  const sources = [...new Map(venues.flatMap(({ attributions }) => attributions || [])
-    .map(({ provider, providerUri }) => [provider, providerUri]))];
-  return <span className="text-xs text-[#5e5e5e]">
-    <span translate="no" className="whitespace-nowrap">Google Maps</span>
-    {sources.map(([provider, uri]) => <span key={provider}> · {/^https?:\/\//i.test(uri || "")
-      ? <a className="underline" href={uri} target="_blank" rel="noreferrer">{provider}</a> : provider}</span>)}
-  </span>;
-}
-
-function Itinerary({ trip, hideLegacyVenues }) {
+function Itinerary({ trip }) {
   const [selectedDay, setSelectedDay] = useState(
     trip.itinerary[0]?.day || 1
   );
@@ -364,7 +335,7 @@ function Itinerary({ trip, hideLegacyVenues }) {
   const day =
     trip.itinerary.find((item) => item.day === selectedDay) ||
     trip.itinerary[0];
-  const { venues, loading } = useDayVenues(trip, day);
+  const destination = resolveTravelLocation(trip.destination);
 
   return (
     <div>
@@ -375,6 +346,9 @@ function Itinerary({ trip, hideLegacyVenues }) {
         <h2 className="text-3xl font-semibold text-brand-900">
           A trip with room to breathe.
         </h2>
+        {trip.generation?.provider === "google-gemini" && <p className="mt-2 text-sm text-slate-600">
+          Check suggested locations, opening hours, and fees before visiting.
+        </p>}
 
         <div className="mt-5 flex gap-2 overflow-x-auto border-b border-slate-200 pb-3">
           {trip.itinerary.map((item) => (
@@ -431,7 +405,9 @@ function Itinerary({ trip, hideLegacyVenues }) {
         {/* ACTIVITIES */}
         <div className="p-6">
           {day.activities.map((activity, index) => {
-            const venue = venues[activity.placeId];
+            const savedPlaceQuery = activity.placeId && new URLSearchParams({
+              api: "1", query: destination, query_place_id: activity.placeId,
+            });
             const meal = ["breakfast", "lunch", "dinner"].includes(activity.venueKind);
             return (
             <div
@@ -458,7 +434,7 @@ function Itinerary({ trip, hideLegacyVenues }) {
                     </p>
 
                     <h4 className="mt-1 text-base font-semibold text-brand-900">
-                      {hideLegacyVenues ? "Scheduled activity" : activity.title}
+                      {activity.title}
                     </h4>
                   </div>
 
@@ -472,23 +448,20 @@ function Itinerary({ trip, hideLegacyVenues }) {
                     {activity.durationMinutes} minutes
                   </span>
 
-                  {!hideLegacyVenues && activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
-                  {!venue && (hideLegacyVenues || (activity.venueKind && activity.venueKind !== "free_time" && !activity.venueSource)) &&
-                    <span>{loading && activity.placeId ? "Looking up venue…" : "Venue to be confirmed"}</span>}
+                  {activity.location && <span>{resolveTravelLocation(activity.location)}</span>}
                 </div>
-                {venue && <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                  <a href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: venue.name, query_place_id: activity.placeId })}`}
-                    target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-900 hover:underline">{venue.name}</a>
-                  {venue.address && <p className="text-xs text-slate-600">{venue.address}</p>}
-                  <VenueAttribution venues={[venue]} />
-                </div>}
+                {activity.suggestedPlace && <p className="mt-3 text-sm text-slate-600">
+                  Gemini suggestion: <strong>{activity.suggestedPlace}</strong>. Check the location and opening hours before visiting.
+                </p>}
+                {savedPlaceQuery && <a href={`https://www.google.com/maps/search/?${savedPlaceQuery}`}
+                  target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-semibold text-brand-900 underline">Open saved stop in Google Maps</a>}
                 {activity.venueSource && <div className="mt-3 text-xs text-slate-600">
                   <p>{activity.venueNote}</p>
                   <a href={activity.venueSource} target="_blank" rel="noreferrer" className="underline">Municipal tourism listing</a>
                 </div>}
 
                 {/* MODULE 6: WEATHER WARNINGS */}
-                {!hideLegacyVenues && (trip.conditions?.warnings || [])
+                {(trip.conditions?.warnings || [])
                   .filter(
                     (warning) =>
                       warning.activityId === activity.id &&
@@ -572,24 +545,21 @@ function Budget({ trip }) {
     </div>
   );
 }
-function Routes({ trip, needsVenueLookup }) {
-  const routes = needsVenueLookup ? [] : trip.itinerary;
+function Routes({ trip }) {
+  const routes = trip.itinerary;
   const [selectedDay, setSelectedDay] = useState(routes[0]?.day);
+  const destination = resolveTravelLocation(trip.destination);
   function routeStops(day) {
-    return day.activities.map((activity) => activity.placeId || activity.location || (activity.venueKind ? "" : activity.title)).filter(Boolean);
+    const locations = orderedRouteLocations(day.activities.map(({ suggestedPlace, location, venueKind, title }) =>
+      location || (suggestedPlace ? [suggestedPlace, destination].join(", ") : venueKind ? "" : title)));
+    const specificStops = locations.filter((location) => location.toLowerCase() !== destination.toLowerCase());
+    return specificStops.length ? specificStops : locations;
   }
-  const mapRoutes = new Set(routes.map((day) => JSON.stringify(routeStops(day))));
+  const mapRoutes = new Set(routes.map((day) => JSON.stringify(routeStops(day).map((location) => location.toLowerCase()))));
   const showDaySelector = mapRoutes.size > 1;
   const sharedRoute = routes.length > 1 && !showDaySelector;
   const route = (showDaySelector && routes.find(({ day }) => day === selectedDay)) || routes[0];
-  const { venues, loading } = useDayVenues(trip, route);
   if (!route) return <p className="notice">There are no mapped stops for this itinerary yet.</p>;
-
-  const locations = orderedRouteLocations(route.activities.map((activity) => {
-    const venue = venues[activity.placeId];
-    if (venue) return [venue.name, venue.address].filter(Boolean).join(", ");
-    return activity.location || (activity.venueKind ? "" : activity.title);
-  }));
 
   return (
     <div>
@@ -609,10 +579,9 @@ function Routes({ trip, needsVenueLookup }) {
         </>
       )}
       {sharedRoute && <p className="mt-3 text-sm text-slate-500">The same route applies to all {routes.length} days.</p>}
+      {trip.generation?.provider === "google-gemini" && <p className="mt-3 text-sm text-slate-500">Check that the map matches the stops suggested by Gemini before traveling.</p>}
       <div className="mt-6">
-        {loading ? <p className="notice">Looking up mapped stops…</p>
-          : <RouteMap locations={locations} showEstimate={!sharedRoute}
-            attribution={Object.keys(venues).length ? <VenueAttribution venues={Object.values(venues)} /> : null} />}
+        <RouteMap locations={routeStops(route)} showEstimate={!sharedRoute} />
       </div>
     </div>
   );
