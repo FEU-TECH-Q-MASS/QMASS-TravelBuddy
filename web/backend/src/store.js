@@ -25,13 +25,26 @@ function makeItinerary(input) {
     ["Adventure activity and morning coffee", "Museum or community experience", "Live music and local dinner"],
     ["Slow breakfast and hidden-gem discovery", "Handicraft shopping and lunch", "Farewell viewpoint and free time"],
   ];
+  const localStops = {
+    MNL: ["Intramuros, Manila", "Rizal Park, Manila", "Manila Baywalk"],
+    CEB: ["Basilica Minore del Santo Niño, Cebu", "Magellan's Cross, Cebu", "Tops Cebu"],
+    DGT: ["Rizal Boulevard, Dumaguete", "Silliman University, Dumaguete", "Casaroro Falls, Negros Oriental"],
+    PPS: ["Puerto Princesa City Baywalk Park", "Baker's Hill, Puerto Princesa", "Honda Bay, Puerto Princesa"],
+    USU: ["Coron Town, Palawan", "Maquinit Hot Spring, Coron", "Lualhati Park, Coron"],
+    TAC: ["San Juanico Bridge", "MacArthur Landing Memorial National Park", "Santo Niño Shrine and Heritage Museum"],
+    LAO: ["Laoag City Hall", "Paoay Church", "La Paz Sand Dunes, Ilocos Norte"],
+    PAL: ["Puerto Princesa City Baywalk Park", "Baker's Hill, Puerto Princesa", "Honda Bay, Puerto Princesa"],
+    BOH: ["Alona Beach, Panglao", "Hinagdanan Cave, Bohol", "Bohol Loboc River"],
+    BOR: ["White Beach Station 2, Boracay", "D'Mall Boracay", "Willy's Rock, Boracay"],
+    BAN: ["Banaue Viewpoint", "Banaue Museum", "Batad Rice Terraces"],
+  }[String(input.destination || "").toUpperCase()] || [`${input.destination}, Philippines`];
   return Array.from({ length: Math.min(days, 14) }, (_, index) => ({
     day: index + 1,
     date: new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10),
     activities: [
-      { id: id("activity"), time: "09:00", title: `${plans[index % plans.length][0]} in ${input.destination}`, location: input.destination, durationMinutes: 120, cost: 500 + index * 50, travelMinutesFromPrevious: 0, distanceKmFromPrevious: 0 },
-      { id: id("activity"), time: "13:00", title: `${plans[index % plans.length][1]} in ${input.destination}`, location: input.destination, durationMinutes: 120, cost: 650 + index * 75, travelMinutesFromPrevious: 20 + index * 5, distanceKmFromPrevious: 2.4 + index * 0.6 },
-      { id: id("activity"), time: "17:00", title: plans[index % plans.length][2], location: input.destination, durationMinutes: 120, cost: 300 + index * 40, travelMinutesFromPrevious: 15 + index * 5, distanceKmFromPrevious: 1.8 + index * 0.5 },
+      { id: id("activity"), time: "09:00", title: `${plans[index % plans.length][0]} in ${input.destination}`, location: localStops[0], durationMinutes: 120, cost: 500 + index * 50, travelMinutesFromPrevious: 0, distanceKmFromPrevious: 0 },
+      { id: id("activity"), time: "13:00", title: `${plans[index % plans.length][1]} in ${input.destination}`, location: localStops[1 % localStops.length], durationMinutes: 120, cost: 650 + index * 75, travelMinutesFromPrevious: 20 + index * 5, distanceKmFromPrevious: 2.4 + index * 0.6 },
+      { id: id("activity"), time: "17:00", title: plans[index % plans.length][2], location: localStops[2 % localStops.length], durationMinutes: 120, cost: 300 + index * 40, travelMinutesFromPrevious: 15 + index * 5, distanceKmFromPrevious: 1.8 + index * 0.5 },
     ],
   }));
 }
