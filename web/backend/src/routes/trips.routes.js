@@ -4,6 +4,7 @@ const { enrichTrip, applyItinerary } = require("../store");
 const { saveTrip, listTrips, getTrip, deleteTrip } = require("../services/trip-repository.service");
 const { generateItinerary } = require("../services/itinerary.service");
 const { refreshTravelData } = require("../services/travel-data.service");
+const { getTravelConditions } = require("../services/travelConditionsService");
 const { z } = require("zod");
 
 const minimumBudgets = { PHP: 10000, USD: 20, EUR: 20, JPY: 3000 };
@@ -75,6 +76,17 @@ router.post("/:id/generate", async (req, res) => {
     await saveTrip(trip);
     res.status(502).json({ error: { code: "GENERATION_FAILED", message: error.message || "Itinerary generation failed." } });
   }
+});
+
+router.post("/:id/refresh-conditions", async (req, res, next) => {
+  try {
+    const trip = await getTrip(req.params.id, req.user.id);
+    if (!trip) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Trip not found." } });
+    const conditions = await getTravelConditions(trip);
+    const updated = { ...trip, conditions, updatedAt: new Date().toISOString() };
+    await saveTrip(updated);
+    res.json({ trip: updated });
+  } catch (error) { next(error); }
 });
 
 router.post("/:id/refresh-data", async (req, res) => {
