@@ -25,8 +25,9 @@ test("contact submissions reach the admin inbox and retain resolution after rest
       let match = true;
       let changes;
       let userId;
+      let countOnly;
       return {
-        select() { return this; },
+        select(_fields, options) { countOnly = options?.head; return this; },
         order() { return this; },
         eq(key, value) {
           if (table === "profiles") userId = value;
@@ -46,8 +47,17 @@ test("contact submissions reach the admin inbox and retain resolution after rest
         },
         update(value) { changes = value; return this; },
         async range(from, to) {
-          assert.equal(to - from + 1, 20);
+          const size = to - from + 1;
+          assert.ok([5, 10, 20].includes(size));
+          if (from > 0) {
+            assert.equal(from, 2 * size);
+            return { error: { code: "PGRST103" } };
+          }
           return { data: match && from === 0 ? [message] : [], count: Number(match) };
+        },
+        then(resolve) {
+          assert.equal(countOnly, true);
+          resolve({ count: Number(match) });
         },
         async maybeSingle() {
           if (table === "profiles") {
@@ -103,6 +113,15 @@ test("contact submissions reach the admin inbox and retain resolution after rest
   assert.equal((await request(inbox)).status, 401);
   assert.equal((await request(inbox, { token: "traveler" })).status, 403);
   assert.equal((await change("archive", "traveler")).status, 403);
+  assert.equal((await request(inbox + "?pageSize=100", { token: "admin" })).status, 400);
+  for (const pageSize of [5, 10, 20]) {
+    const response = await request(inbox + "?pageSize=" + pageSize, { token: "admin" });
+    assert.deepEqual(await response.json(), { messages: [message], total: 1, pageSize });
+  }
+  const outOfRange = await request(inbox + "?page=3&pageSize=5&status=open", { token: "admin" });
+  assert.deepEqual(await outOfRange.json(), { messages: [], total: 1, pageSize: 5 });
+  const noMatches = await request(inbox + "?page=3&pageSize=5&status=resolved", { token: "admin" });
+  assert.deepEqual(await noMatches.json(), { messages: [], total: 0, pageSize: 5 });
   assert.equal((await list("?status=open&topic=General+question&search=example.org")).length, 1);
   assert.equal((await change("resolve")).status, 200);
   const resolvedAt = message.resolved_at;

@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import Icon from "@/components/Icon";
 import { api } from "@/lib/api";
 
 const accountMetrics = [
@@ -78,6 +80,30 @@ export default function AdminDashboard({ name }) {
           </>
         )}
       </section>
+      {summary?.supportMessages && <SupportOverview counts={summary.supportMessages} />}
+    </section>
+  );
+}
+
+function SupportOverview({ counts }) {
+  return (
+    <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="support-overview">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="support-overview" className="text-xl font-semibold text-brand-900">Support messages</h2>
+        <Link href="/admin/support-messages" className="text-link">Open inbox <Icon name="arrow" size={16} /></Link>
+      </div>
+      <dl className="mt-5 grid grid-cols-3 gap-2 sm:gap-4">
+        {[
+          { key: "open", label: "Open", className: "bg-brand-50" },
+          { key: "resolved", label: "Resolved", className: "bg-slate-50" },
+          { key: "archived", label: "Archived", className: "bg-slate-50" },
+        ].map(({ key, label, className }) => (
+          <div key={key} className={`min-w-0 rounded-xl px-3 py-4 sm:px-4 ${className}`}>
+            <dt className="text-sm font-semibold text-slate-600">{label}</dt>
+            <dd className="mt-1 text-2xl font-semibold text-brand-900 tabular-nums wrap-anywhere">{counts[key].toLocaleString("en-PH")}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

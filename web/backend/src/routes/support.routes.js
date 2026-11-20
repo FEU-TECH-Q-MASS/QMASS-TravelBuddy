@@ -3,7 +3,6 @@ const { z } = require("zod");
 const { topics, validateContact } = require("../../../contact-validation.cjs");
 const { getSupabaseClient } = require("../config/supabase");
 
-const pageSize = 20;
 const fields = "id, name, email, topic, message, created_at, resolved_at, archived_at";
 const filters = z.object({
   view: z.enum(["inbox", "archived"]).default("inbox"),
@@ -11,7 +10,32 @@ const filters = z.object({
   topic: z.enum(topics).optional(),
   search: z.string().trim().max(254).optional(),
   page: z.string().regex(/^[1-9]\d{0,5}$/).transform(Number).default(1),
+  pageSize: z.enum(["5", "10", "20"]).transform(Number).default(20),
 });
+
+function filterMessageStatus(query, view, status) {
+  if (view === "archived") query = query.not("archived_at", "is", null);
+  else query = query.is("archived_at", null);
+  if (status === "open") return query.is("resolved_at", null);
+  if (status === "resolved") return query.not("resolved_at", "is", null);
+  return query;
+}
+
+async function getSupportMessageCounts(client) {
+  const count = (view, status) => filterMessageStatus(
+    client.from("support_messages").select("id", { count: "exact", head: true }),
+    view, status,
+  );
+  const [open, resolved, archived] = await Promise.all([
+    count("inbox", "open"),
+    count("inbox", "resolved"),
+    count("archived"),
+  ]);
+  for (const result of [open, resolved, archived]) {
+    if (result.error) throw result.error;
+  }
+  return { open: open.count, resolved: resolved.count, archived: archived.count };
+}
 
 function createContactRouter(supabaseClient) {
   const router = Router();
@@ -54,20 +78,24 @@ function createSupportInboxRouter(supabaseClient) {
     const input = filters.safeParse(req.query);
     if (!input.success) return res.status(400).json({ error: { message: "Check the inbox filters." } });
 
-    const { view, status, topic, search, page } = input.data;
+    const { view, status, topic, search, page, pageSize } = input.data;
     const client = supabaseClient || getSupabaseClient();
-    let query = client.from("support_messages").select(fields, { count: "exact" });
-    query = view === "archived" ? query.not("archived_at", "is", null) : query.is("archived_at", null);
-    if (status === "open") query = query.is("resolved_at", null);
-    if (status === "resolved") query = query.not("resolved_at", "is", null);
-    if (topic) query = query.eq("topic", topic);
-    if (search) query = query.ilike("sender_search", "%" + search.replace(/[\\%_*]/g, "\\$&") + "%");
+
+    function filterMessages(query) {
+      query = filterMessageStatus(query, view, status);
+      if (topic) query = query.eq("topic", topic);
+      if (search) query = query.ilike("sender_search", "%" + search.replace(/[\\%_*]/g, "\\$&") + "%");
+      return query;
+    }
 
     const offset = (page - 1) * pageSize;
+    const query = filterMessages(client.from("support_messages").select(fields, { count: "exact" }));
     const { data, count, error } = await query.order("created_at", { ascending: false })
       .order("id", { ascending: false }).range(offset, offset + pageSize - 1);
     if (page > 1 && error?.code === "PGRST103") {
-      return res.json({ messages: [], total: 0, pageSize });
+      const total = await filterMessages(client.from("support_messages").select("id", { count: "exact", head: true }));
+      if (total.error) throw total.error;
+      return res.json({ messages: [], total: total.count, pageSize });
     }
     if (error) throw error;
     return res.json({ messages: data, total: count, pageSize });
@@ -99,4 +127,4 @@ function createSupportInboxRouter(supabaseClient) {
   return router;
 }
 
-module.exports = { createContactRouter, createSupportInboxRouter };
+module.exports = { createContactRouter, createSupportInboxRouter, getSupportMessageCounts };

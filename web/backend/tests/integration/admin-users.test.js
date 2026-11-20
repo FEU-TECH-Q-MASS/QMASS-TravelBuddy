@@ -19,6 +19,13 @@ test("only admins can view account totals, filter users, and persist access chan
     [adminId, { id: adminId, email: "admin@example.com", created_at: createdAt }],
     [travelerId, { id: travelerId, email: "traveler@example.com", created_at: createdAt }],
   ]);
+  const supportMessages = [
+    { archived_at: null, resolved_at: null },
+    { archived_at: null, resolved_at: null },
+    { archived_at: null, resolved_at: createdAt },
+    { archived_at: createdAt, resolved_at: null },
+    { archived_at: createdAt, resolved_at: createdAt },
+  ];
   const supabase = {
     auth: {
       getUser: async (id) => ({ data: { user: accounts.get(id) } }),
@@ -31,6 +38,26 @@ test("only admins can view account totals, filter users, and persist access chan
       },
     },
     from(table) {
+      if (table === "support_messages") {
+        let rows = supportMessages;
+        return {
+          select(fields, options) {
+            assert.equal(fields, "id");
+            assert.deepEqual(options, { count: "exact", head: true });
+            return this;
+          },
+          is(column, value) {
+            rows = rows.filter((row) => row[column] === value);
+            return this;
+          },
+          not(column, operator, value) {
+            assert.equal(operator, "is");
+            rows = rows.filter((row) => row[column] !== value);
+            return this;
+          },
+          then(resolve) { resolve({ count: rows.length }); },
+        };
+      }
       assert.equal(table, "profiles");
       let id;
       let changes;
@@ -109,6 +136,7 @@ test("only admins can view account totals, filter users, and persist access chan
   const summary = await request("/summary", adminId);
   assert.deepEqual(await summary.json(), {
     counts: { total: 6, admins: 1, active: 5, inactive: 1, newAccounts: 4 },
+    supportMessages: { open: 2, resolved: 1, archived: 2 },
     recentRegistrations: [
       profiles.get(travelerId),
       ...additionalProfiles.slice(0, 3),
