@@ -12,6 +12,18 @@ const { getTripTransport } = require("../../../shared/transport.cjs");
 const { currencies, tripCurrency, minimumBudgets, maxTravelers, validateTravelers, validateBudget } = require("../../../shared/tripNumbers.cjs");
 const { updateTripEstimate } = require("../services/trip-budget.service");
 
+//seraching for tripFlights
+const {
+  searchTripFlights,
+  getFlightSeatMaps,
+  verifyFlightOffer,
+  FlightSearchError,
+} = require("../services/flight-offers.service");
+
+const {
+  DuffelApiError,
+} = require("../services/duffel.service");
+
 const itineraryRequests = new Set();
 const generationInput = z.object({
   reason: z.enum(["schedule", "budget"]).default("schedule"),
@@ -69,6 +81,199 @@ router.get("/", (req, res, next) => {
   try { res.json({ trips: await listTrips(req.user.id) }); } catch (error) { next(error); }
 });
 router.use(requireAuth);
+
+
+router.get("/:id/flight-offers", async (req, res, next) => {
+  try {
+    const trip = await getTrip(
+      req.params.id,
+      req.user.id
+    );
+
+    if (!trip) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Trip not found.",
+        },
+      });
+    }
+
+    const result = await searchTripFlights(trip);
+
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof FlightSearchError) {
+      return res.status(error.status).json({
+        error: {
+          code: "FLIGHT_SEARCH_INVALID",
+          message: error.message,
+        },
+      });
+    }
+
+    if (error instanceof DuffelApiError) {
+      console.error("Duffel flight search failed", {
+        status: error.status,
+        details: error.details,
+      });
+
+      return res.status(502).json({
+        error: {
+          code: "FLIGHT_PROVIDER_ERROR",
+          message:
+            "Flight search is temporarily unavailable.",
+        },
+      });
+    }
+
+    next(error);
+  }
+});
+
+
+router.get(
+  "/:id/flight-offers/:offerId/seat-maps",
+  async (req, res, next) => {
+    try {
+      const trip = await getTrip(
+        req.params.id,
+        req.user.id
+      );
+
+      if (!trip) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Trip not found.",
+          },
+        });
+      }
+
+      if (!trip.includeFlights) {
+        return res.status(400).json({
+          error: {
+            code: "FLIGHTS_DISABLED",
+            message: "Flights are not enabled for this trip.",
+          },
+        });
+      }
+
+      const result = await getFlightSeatMaps(
+        req.params.offerId
+      );
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof FlightSearchError) {
+        return res.status(error.status).json({
+          error: {
+            code: "FLIGHT_SEAT_MAP_ERROR",
+            message: error.message,
+          },
+        });
+      }
+
+      if (error instanceof DuffelApiError) {
+        console.error("Duffel seat map error", {
+          status: error.status,
+          details: error.details,
+        });
+
+        return res.status(502).json({
+          error: {
+            code: "FLIGHT_PROVIDER_ERROR",
+            message: "Seat maps are unavailable for this offer.",
+          },
+        });
+      }
+
+      next(error);
+    }
+  }
+);
+
+
+router.post(
+  "/:id/flight-offers/:offerId/verify",
+  async (req, res, next) => {
+    try {
+      // Verify trip ownership
+      const trip = await getTrip(
+        req.params.id,
+        req.user.id
+      );
+
+      if (!trip) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Trip not found.",
+          },
+        });
+      }
+
+      if (!trip.includeFlights) {
+        return res.status(400).json({
+          error: {
+            code: "FLIGHTS_DISABLED",
+            message: "Flights are not enabled for this trip.",
+          },
+        });
+      }
+
+      // Retrieve and verify the Duffel offer
+      const result = await verifyFlightOffer(
+        req.params.offerId
+      );
+
+      return res.json(result);
+
+    } catch (error) {
+      if (error instanceof FlightSearchError) {
+        return res.status(error.status).json({
+          error: {
+            code: "FLIGHT_VERIFICATION_ERROR",
+            message: error.message,
+          },
+        });
+      }
+
+      if (error instanceof DuffelApiError) {
+        console.error(
+          "Duffel offer verification failed",
+          {
+            status: error.status,
+            details: error.details,
+          }
+        );
+
+        // The offer may have expired or disappeared.
+        // Do not expose provider internals to clients.
+        if ([404, 410].includes(error.status)) {
+          return res.status(410).json({
+            error: {
+              code: "FLIGHT_OFFER_UNAVAILABLE",
+              message:
+                "This flight offer is no longer available. Search again.",
+            },
+          });
+        }
+
+        return res.status(502).json({
+          error: {
+            code: "FLIGHT_PROVIDER_ERROR",
+            message:
+              "Unable to verify this flight offer.",
+          },
+        });
+      }
+
+      next(error);
+    }
+  }
+);
+
 
 router.post("/", async (req, res, next) => {
   try {

@@ -21,6 +21,8 @@ const sourceDateFormatter = new Intl.DateTimeFormat("en-PH", {
   timeZone: "Asia/Manila", timeZoneName: "short",
 });
 
+
+
 function SourceTime({ value, label }) {
   const date = new Date(value);
   if (!value || !Number.isFinite(date.getTime())) return null;
@@ -46,11 +48,17 @@ function itineraryUpdateMessage(update, busy, error) {
 }
 
 export default function TripWorkspace({ params }) {
+  const [flightTestLoading, setFlightTestLoading] = useState(false);
+  const [flightTestResult, setFlightTestResult] = useState(null);
+  const [flightTestError, setFlightTestError] = useState("");
   const [trip, setTrip] = useState(null); const [tab, setTab] = useState("itinerary"); const [error, setError] = useState(""); const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState("");
   const [generationReason, setGenerationReason] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [flightPriceResult, setFlightPriceResult] = useState(null);
+  const [flightPriceLoading, setFlightPriceLoading] = useState(false);
+  const [flightPriceError, setFlightPriceError] = useState("");
   const refreshInFlight = useRef(false);
   const generationInFlight = useRef(false);
   const editButton = useRef(null);
@@ -76,6 +84,71 @@ export default function TripWorkspace({ params }) {
       else editButton.current?.focus();
     });
   }
+
+
+  async function testDuffelSeatMaps() {
+    const offerId = flightTestResult?.offers?.[0]?.id;
+
+    if (!trip?.id || !offerId) {
+      alert("Search for flight offers first.");
+      return;
+    }
+
+    try {
+      console.log("Fetching seat maps for:", offerId);
+
+      const result = await api(
+        `/trips/${trip.id}/flight-offers/${offerId}/seat-maps`
+      );
+
+      console.log("Duffel Seat Maps:", result);
+
+      alert(
+        result.seatMapsAvailable
+          ? `Seat maps found: ${result.seatMaps.length}`
+          : "No seat maps available for this flight."
+      );
+    } catch (error) {
+      console.error("Seat map test failed:", error);
+      alert(`Seat map error: ${error.message}`);
+    }
+  }
+
+  async function testDuffelPrice() {
+    const offerId = flightTestResult?.offers?.[0]?.id;
+
+    if (!trip?.id || !offerId || flightPriceLoading) {
+      return;
+    }
+
+    setFlightPriceLoading(true);
+    setFlightPriceResult(null);
+    setFlightPriceError("");
+
+    try {
+      const result = await api(
+        `/trips/${trip.id}/flight-offers/${offerId}/verify`,
+        {
+          method: "POST",
+        }
+      );
+
+      console.log("Duffel price verification:", result);
+
+      setFlightPriceResult(result);
+    } catch (error) {
+      console.error(
+        "Flight price verification failed:",
+        error
+      );
+
+      setFlightPriceError(error.message);
+    } finally {
+      setFlightPriceLoading(false);
+    }
+  }
+
+
 
   async function updateItinerary(savedTrip, reason) {
     if (generationInFlight.current || refreshInFlight.current) return;
@@ -126,6 +199,36 @@ export default function TripWorkspace({ params }) {
   const canRetrySchedule = update?.reason === "schedule";
   const canReplanBudget = remaining < 0 && !canRetrySchedule && update?.status !== "fixed-costs";
   const scheduleKey = `${trip.id}:${trip.destination}:${trip.departure}:${trip.returnDate}`;
+
+
+async function testDuffelFlights() {
+  if (!trip?.id || flightTestLoading) return;
+
+  setFlightTestLoading(true);
+  setFlightTestError("");
+  setFlightTestResult(null);
+  setFlightPriceResult(null);
+  setFlightPriceError("");
+
+  try {
+    console.log("Testing Duffel flight search...");
+    console.log("Trip ID:", trip.id);
+
+    const result = await api(
+      `/trips/${trip.id}/flight-offers`
+    );
+
+    console.log("Duffel flight search result:", result);
+
+    setFlightTestResult(result);
+  } catch (error) {
+    console.error("Duffel flight search failed:", error);
+    setFlightTestError(error.message);
+  } finally {
+    setFlightTestLoading(false);
+  }
+}
+
   return (
     <section className="page-width section-space">
       <div className="relative isolate overflow-hidden rounded-3xl bg-brand-900 p-7 text-white sm:p-10">
@@ -186,8 +289,133 @@ export default function TripWorkspace({ params }) {
           <div>
             <h2 className="text-3xl font-semibold text-brand-900">Getting there</h2>
             <div className="mt-6">
+
+<div style={{
+  padding: "16px",
+  border: "1px solid #ccc",
+  borderRadius: "8px",
+  marginBottom: "20px"
+}}>
+  <h3>Module 7 — Duffel API Test</h3>
+
+  <button
+    type="button"
+    onClick={testDuffelFlights}
+    disabled={flightTestLoading}
+  >
+    {flightTestLoading
+      ? "Searching flights..."
+      : "Test Duffel Flight Search"}
+  </button>
+
+  {flightTestError && (
+    <p style={{ color: "red" }}>
+      Error: {flightTestError}
+    </p>
+  )}
+
+  {flightTestResult && (
+    <div style={{ marginTop: "12px" }}>
+      <p>
+        Provider: {flightTestResult.provider}
+      </p>
+      <p>
+        Offer Request ID:{" "}
+        {flightTestResult.offerRequestId || "None"}
+      </p>
+      <p>
+        Offers found:{" "}
+        {flightTestResult.offers?.length ?? 0}
+      </p>
+
+      <pre style={{
+        maxHeight: "300px",
+        overflow: "auto",
+        whiteSpace: "pre-wrap",
+        overflowWrap: "anywhere"
+      }}>
+        {JSON.stringify(flightTestResult, null, 2)}
+      </pre>
+    </div>
+  )}
+</div>
+
+
+<button
+  type="button"
+  onClick={testDuffelSeatMaps}
+  disabled={!flightTestResult?.offers?.length}
+  style={{
+    marginTop: "12px",
+    padding: "10px 16px",
+    cursor: "pointer",
+  }}
+>
+  Test Duffel Seat Maps
+</button>
+
+
+
+
+<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+  <h3 className="mb-3 text-lg font-semibold text-brand-900">
+    Module 7 — Flight Price Verification
+  </h3>
+
+  <button
+    type="button"
+    className="btn btn-outline"
+    onClick={testDuffelPrice}
+    disabled={
+      flightPriceLoading ||
+      !flightTestResult?.offers?.length
+    }
+  >
+    {flightPriceLoading
+      ? "Verifying flight price..."
+      : "Verify Flight Price"}
+  </button>
+
+  {flightPriceError && (
+    <p className="mt-3 text-sm text-red-600">
+      Error: {flightPriceError}
+    </p>
+  )}
+
+  {flightPriceResult && (
+    <div className="mt-4 space-y-2">
+      <h4 className="font-semibold">
+        Flight Price Verification Result
+      </h4>
+
+      <p>
+        <strong>Status:</strong>{" "}
+        {flightPriceResult.status}
+      </p>
+
+      <p>
+        <strong>Verified Price:</strong>{" "}
+        {flightPriceResult.price?.totalAmount}{" "}
+        {flightPriceResult.price?.totalCurrency}
+      </p>
+
+      <p>
+        <strong>Expires At:</strong>{" "}
+        {flightPriceResult.expiresAt || "Unknown"}
+      </p>
+
+      <p>{flightPriceResult.message}</p>
+
+      <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-100 p-3 text-xs">
+        {JSON.stringify(flightPriceResult, null, 2)}
+      </pre>
+    </div>
+  )}
+</div>
+
               {trip.destination === "PAL"
                 ? <p className="notice">Choose Puerto Princesa, Coron, or El Nido when you edit this saved trip to see transport options.</p>
+                
                 : <TripTransport origin={trip.origin} destination={trip.destination} departure={trip.departure} returnDate={trip.returnDate} showSearch />}
             </div>
           </div>
